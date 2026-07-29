@@ -165,3 +165,18 @@ TONG KET sau 42.3 phut
 | `bi chan boi bo loc (IMAGE_SAFETY)` | prompt bị Google chặn — sửa lời prompt rồi chạy bù |
 | Pollinations chậm | đúng vậy: tài khoản ẩn danh 15 giây/ảnh, muốn nhanh thì dán `token` |
 | Ảnh không phải 1920×1080 | thiếu Pillow — `pip install pillow` |
+
+## 11. Kiểm tra API key trước khi chạy
+
+```
+python tao_anh.py --kiem-tra-key
+```
+
+Gọi thử từng key trong `config.json` (chỉ liệt kê model nên **không tốn quota ảnh**) và cho biết
+key nào sống, tài khoản đó có dùng được model ảnh đang khai trong `gemini.model` không.
+
+Key đúng phải là **API key** lấy ở https://aistudio.google.com/apikey — bấm *Create API key*,
+copy nguyên chuỗi một dòng.
+
+Chuỗi bắt đầu bằng `AQ.` hoặc `ya29.` là **OAuth access token**, không phải API key: Google
+trả `HTTP 401 – Expected OAuth 2 access token`, và loại token đó còn hết hạn sau khoảng 1 tiếng.

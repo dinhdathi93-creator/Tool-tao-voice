@@ -735,6 +735,88 @@ def _lay_anh_tu_tra_ve(du_lieu: dict) -> bytes:
     raise LoiTamThoi("tra ve rong")
 
 
+def kiem_tra_cac_key(cau_hinh: dict) -> int:
+    """Goi thu tung API key xem key nao song, va model anh co dung duoc khong.
+
+    Chi liet ke model nen khong ton quota sinh anh.
+    """
+    cfg = cau_hinh["gemini"]
+    keys = [k for k in (cfg.get("api_keys") or []) if k and "DAN_API_KEY" not in k]
+
+    log.info("=" * 70)
+    log.info("KIEM TRA API KEY GEMINI")
+    log.info("=" * 70)
+
+    if not keys:
+        log.error("Chua co key nao trong config.json (muc gemini.api_keys).")
+        log.error("Lay key mien phi tai https://aistudio.google.com/apikey")
+        return 2
+
+    ten_model = str(cfg.get("model", "gemini-2.5-flash-image"))
+    so_song = 0
+
+    for i, key in enumerate(keys, 1):
+        che = key[:6] + "..." + key[-4:] if len(key) > 12 else "(qua ngan)"
+        log.info("")
+        log.info("Key #%d: %s  (dai %d ky tu)", i, che, len(key))
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={urllib.parse.quote(key)}"
+        try:
+            with urllib.request.urlopen(
+                urllib.request.Request(url), timeout=float(cfg.get("timeout_giay", 60))
+            ) as tra_ve:
+                du_lieu = json.loads(tra_ve.read().decode("utf-8"))
+        except urllib.error.HTTPError as loi:
+            try:
+                goi = json.loads(loi.read().decode("utf-8")).get("error", {})
+            except Exception:
+                goi = {}
+            thong_diep = str(goi.get("message") or loi.reason)
+            log.error("  [HONG] HTTP %d: %s", loi.code, thong_diep)
+            if loi.code == 401 or "OAuth" in thong_diep:
+                log.error("  -> Google doc chuoi nay nhu mot OAuth access token, KHONG phai API key.")
+                log.error("     Cac chuoi bat dau bang 'AQ.' hay 'ya29.' deu la OAuth token,")
+                log.error("     khong dung duoc o day va con het han sau khoang 1 tieng.")
+                log.error("     Can API key that: https://aistudio.google.com/apikey")
+            elif loi.code == 400 and "API key not valid" in thong_diep:
+                log.error("  -> Chuoi nay co dang API key nhung Google khong nhan.")
+                log.error("     Copy thieu/thua ky tu, hoac key da bi xoa. Tao key moi tai")
+                log.error("     https://aistudio.google.com/apikey")
+            elif loi.code == 403:
+                log.error("  -> Key dung nhung bi cam: project chua bat Generative Language API,")
+                log.error("     hoac key bi gioi han theo IP/ung dung trong Google Cloud Console.")
+            continue
+        except Exception as loi:
+            log.error("  [HONG] khong goi duoc: %s", loi)
+            continue
+
+        ten_cac_model = [
+            str(m.get("name", "")).removeprefix("models/") for m in du_lieu.get("models", [])
+        ]
+        so_song += 1
+        log.info("  [OK] Key dung duoc, tai khoan nay co %d model.", len(ten_cac_model))
+
+        if ten_model in ten_cac_model:
+            log.info("  [OK] Model anh '%s' dung duoc.", ten_model)
+        else:
+            log.error("  [HONG] Tai khoan nay KHONG co model '%s'.", ten_model)
+            anh = [m for m in ten_cac_model if "image" in m]
+            if anh:
+                log.error("  -> Sua gemini.model trong config.json thanh mot trong nhung ten nay:")
+                for m in anh:
+                    log.error("       %s", m)
+            else:
+                log.error("  -> Tai khoan nay khong co model sinh anh nao.")
+
+    log.info("")
+    log.info("=" * 70)
+    log.info("KET QUA: %d/%d key dung duoc.", so_song, len(keys))
+    if so_song == 0:
+        log.error("Khong co key nao chay duoc -> chua tao duoc anh Gemini.")
+    log.info("=" * 70)
+    return 0 if so_song else 1
+
+
 # ---------------------------------------------------------------------------
 # 8. Pollinations
 # ---------------------------------------------------------------------------
@@ -1282,6 +1364,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
                    help="Khong chuyen file .txt sang PROMPT_XONG khi chay xong")
     p.add_argument("--chi-tiet", action="store_true", help="In them log go roi")
     p.add_argument("--tu-kiem-tra", action="store_true", help="Chay thu duong ong, khong goi API")
+    p.add_argument("--kiem-tra-key", action="store_true",
+                   help="Goi thu tung API key Gemini xem key nao song (khong ton quota anh)")
     return p.parse_args(list(argv))
 
 
@@ -1317,6 +1401,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         log.info("Chua co key van chay duoc Pollinations:  python tao_anh.py --chi-pollinations")
         log.info("=" * 70)
         return 0
+
+    if tuy_chon.kiem_tra_key:
+        return kiem_tra_cac_key(cau_hinh)
 
     if tuy_chon.chi_pollinations:
         for muc in (cau_hinh.get("kenh") or {}).values():
