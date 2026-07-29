@@ -46,6 +46,8 @@ if errorlevel 1 (
     if errorlevel 2 ( exit /b 1 )
     call "%~dp0CAI_DAT.bat" /nopause
     if errorlevel 1 ( pause & exit /b 1 )
+    rem CAI_DAT.bat vua tao .venv -> chuyen sang dung python trong do
+    if exist ".venv\Scripts\python.exe" set "PY=.venv\Scripts\python.exe"
 )
 
 rem --- 3. Chay: co keo tha thi chay dung file/thu muc do -------

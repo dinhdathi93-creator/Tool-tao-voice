@@ -124,9 +124,20 @@ chạy 10 file TERCO1 + 10 file GODSAYS chỉ nạp 2 model thay vì nạp đi n
 
 ## 6. Model dùng được
 
-`english` (mặc định), `portuguese`, `french`, `german`, `italian`, `spanish`,
-và các biến thể `*_24l` (bản lớn hơn, chậm hơn, chất lượng preview), `english_2026-01`,
-`english_2026-04`.
+Bản `pocket-tts 2.1.0` có sẵn:
+
+```
+english   english_2026-01   english_2026-04   portuguese   portuguese_24l
+german    german_24l        italian           italian_24l
+spanish   spanish_24l       french_24l
+```
+
+Các bản `*_24l` là model lớn hơn (chậm hơn, đang ở dạng preview). Lưu ý **không có
+`french` trơn**, chỉ có `french_24l`. Nếu gõ sai tên model, tool báo ngay tên đúng
+trong log rồi chuyển sang file kế tiếp.
+
+Về `temperature`: để `null` thì dùng mặc định của thư viện (bản 2.1.0 là `0.7`).
+Muốn giọng đọc điềm đạm, đều hơn thì đặt `0.3`–`0.5`; muốn nhiều cảm xúc hơn thì `0.8`–`0.9`.
 
 ## 7. Tốc độ và bộ nhớ
 

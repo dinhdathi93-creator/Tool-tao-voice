@@ -53,14 +53,14 @@ FILE_CAU_HINH = GOC / "channels.json"
 # pocket-tts luon xuat 24 kHz mono; van doc lai tu model khi co the.
 SAMPLE_RATE_MAC_DINH = 24000
 
-# Ten config hop le cua pocket-tts (xem pocket_tts/config/*.yaml).
+# Ten config cua pocket-tts 2.1.0 (pocket_tts/config/*.yaml).
+# Ban cai tren may co the khac -> danh_sach_model() doc truc tiep tu goi da cai.
 MODEL_HOP_LE = [
     "english",
     "english_2026-01",
     "english_2026-04",
     "portuguese",
     "portuguese_24l",
-    "french",
     "french_24l",
     "german",
     "german_24l",
@@ -69,6 +69,17 @@ MODEL_HOP_LE = [
     "spanish",
     "spanish_24l",
 ]
+
+
+def danh_sach_model() -> list[str]:
+    """Danh sach model that su co trong ban pocket-tts dang cai (neu doc duoc)."""
+    try:
+        from pocket_tts.utils.config import CONFIGS_DIR
+
+        co_san = sorted(p.stem for p in Path(CONFIGS_DIR).glob("*.yaml"))
+        return co_san or list(MODEL_HOP_LE)
+    except Exception:
+        return list(MODEL_HOP_LE)
 
 # model pocket-tts -> ma ngon ngu cho faster-whisper
 MA_WHISPER = {
@@ -501,12 +512,24 @@ class MayDocGiong:
                 f"(chi tiet: {loi})"
             ) from loi
 
+        co_san = danh_sach_model()
+        if ten_model not in co_san:
+            # Loi cau hinh cua 1 kenh -> bao ro roi di tiep, khong lam chet ca hang doi.
+            raise RuntimeError(
+                f"Model '{ten_model}' khong co trong ban pocket-tts dang cai. "
+                f"Sua lai 'model' trong channels.json. Cac ten dung duoc: "
+                + ", ".join(co_san)
+            )
+
         if self.luong:
             torch.set_num_threads(max(1, self.luong))
         log.info("Nap model pocket-tts '%s' (lan dau se tai ve, hoi lau)...", ten_model)
         t0 = time.time()
         nhiet = self.temperature_ep if self.temperature_ep is not None else temperature
-        model = TTSModel.load_model(language=ten_model, temp=nhiet)
+        # Ban pocket-tts phat hanh khong nhan temp=None -> chi truyen khi co gia tri,
+        # de model tu lay 'default_temperature' trong config cua no.
+        them = {"temp": float(nhiet)} if nhiet is not None else {}
+        model = TTSModel.load_model(language=ten_model, **them)
         model.to("cpu")
         self._model[ten_model] = model
         self.sample_rate = int(model.sample_rate)
