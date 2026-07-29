@@ -8,7 +8,8 @@
     "kenh.<TEN>.model: auto = tu chon theo tag [P] va tu khoa; gemini / pollinations = ep cung.",
     "kenh.<TEN>.cam_du_phong: true = cam roi xuong Pollinations, het quota thi cho chay bu.",
     "chung.uu_tien: cac kenh chay truoc trong hang doi.",
-    "pollinations.cach_nhau_giay: tai khoan an danh bi gioi han 1 anh / 15 giay."
+    "pollinations.cach_nhau_giay: tai khoan an danh bi gioi han 1 anh / 15 giay.",
+    "anh.dinh_dang: jpg nhe hon PNG khoang 5 lan (0.5MB so voi 3MB moi anh), mat thuong khong phan biet duoc o q95. Doi thanh png neu can anh khong nen."
   ],
   "gemini": {
     "api_keys": [
@@ -35,7 +36,7 @@
   "anh": {
     "rong": 1920,
     "cao": 1080,
-    "dinh_dang": "png",
+    "dinh_dang": "jpg",
     "chat_luong_jpg": 95,
     "toi_thieu_kb": 20
   },

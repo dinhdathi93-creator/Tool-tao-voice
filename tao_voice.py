@@ -1468,9 +1468,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     tuy_chon = phan_tich_tham_so(sys.argv[1:] if argv is None else argv)
     file_log = cai_dat_log(logging.DEBUG if tuy_chon.chi_tiet else logging.INFO)
 
+    # Cho model tai ve nam ngay trong thu muc tool, thay vi len o C: cua Windows.
+    # Nho vay chuyen ca thu muc tool sang o khac la chuyen theo luon, khong sot GB nao.
+    os.environ.setdefault("HF_HOME", str(THU_MUC_CACHE / "huggingface"))
+
     log.info("=" * 68)
     log.info("%s v%s  |  pocket-tts + faster-whisper  |  CPU-only", APP_NAME, APP_VERSION)
     log.info("Log: %s", file_log)
+    log.info("Model tai ve: %s", os.environ["HF_HOME"])
 
     if tuy_chon.tu_kiem_tra:
         return tu_kiem_tra()
