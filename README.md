@@ -21,23 +21,41 @@ HuggingFace) nên sẽ lâu. Những lần sau chạy ngay.
 
 ## 2. Chuẩn bị
 
-**a. File giọng mẫu** → bỏ vào `voices\`, đặt tên theo kênh:
+**a. Nạp giọng mẫu để clone** → kéo thả file audio vào **`THEM_GIONG.bat`**.
+
+Nó hỏi tên kênh + ngôn ngữ rồi tự làm hết: kiểm tra chất lượng mẫu, chuyển sang WAV
+16-bit mono, cắt khoảng lặng thừa, giới hạn 30 giây (cắt đúng chỗ im lặng cho khỏi
+đứt giữa từ), chuẩn âm lượng, lưu vào `voices\<KÊNH>.wav`, ghi luôn vào `channels.json`,
+rồi **đọc thử một câu** để bạn nghe trước — mở ra ngay sau khi chạy xong.
+
+Nhận `wav`, `mp3`, `m4a`, `flac`, `ogg`. Giọng cũ cùng kênh được đổi tên giữ lại
+(`TERCO1_cu_20260729_143012.wav`), không mất.
+
+Mẫu tốt: **10–30 giây**, một người nói liền mạch, **không nhạc nền**, không tiếng ồn,
+đúng ngôn ngữ của model. Tool sẽ cảnh báo nếu mẫu quá ngắn, ồn, vỡ tiếng, sample rate
+thấp, hoặc quá nhiều khoảng lặng — dưới 4 giây thì từ chối luôn.
+
+Chạy bằng dòng lệnh cũng được, có thêm chọn đoạn:
 
 ```
-voices\TERCO1.wav      voices\GODSAYS.wav      voices\RUNGWORK.wav
+python tao_voice.py --them-giong "D:\thu\cha_A.mp3" --kenh TERCO1 --model portuguese --tu 12 --den 38
 ```
 
-Yêu cầu: **WAV 16-bit PCM mono, 10–30 giây**, một người nói liền mạch, không nhạc nền.
-(mp3/m4a cũng chạy được, tool tự chuyển, nhưng WAV 16-bit cho kết quả tốt nhất)
+> Không có gì được tải lên mạng. pocket-tts clone giọng ngay trên máy bạn;
+> mạng chỉ dùng đúng một lần để tải trọng số model về.
 
-**b. Khai báo kênh** trong `channels.json`:
+**b. Khai báo kênh** — `THEM_GIONG.bat` đã ghi sẵn, chỉ sửa `channels.json` khi cần
+đổi độ dài nghỉ hay temperature:
 
 ```json
 "kenh": {
-  "TERCO1":  { "model": "portuguese", "voice": "TERCO1.wav"  },
+  "TERCO1":  { "model": "portuguese", "voice": "TERCO1.wav", "nghi_dai": 1.0 },
   "GODSAYS": { "model": "english",    "voice": "GODSAYS.wav" }
 }
 ```
+
+Muốn bỏ file giọng vào tay thì cũng được: đặt tên `voices\<TÊN_KÊNH>.wav` là tool tự
+nhận, nhưng nhớ xuất đúng **WAV 16-bit PCM mono**.
 
 **c. Kịch bản** → bỏ vào `KB_CHO\`, tên file **bắt đầu bằng tiền tố kênh**:
 
@@ -54,6 +72,7 @@ Tiền tố chưa khai báo → tool dùng cấu hình `mac_dinh` và ghi cảnh
 
 | Cách | Làm gì |
 |---|---|
+| **Kéo thả** file audio vào `THEM_GIONG.bat` | nạp giọng mẫu cho một kênh |
 | **Kéo thả** file `.txt` hoặc cả thư mục vào `TAO_VOICE.bat` | chỉ chạy đúng những thứ được kéo vào |
 | **Bấm đúp** `TAO_VOICE.bat` | chạy hết hàng đợi trong `KB_CHO\` |
 | `python tao_voice.py` | như trên, chạy từ dòng lệnh |
@@ -119,6 +138,19 @@ python tao_voice.py [file/thư mục ...] [tuỳ chọn]
 --tu-kiem-tra             chạy thử đường ống, không cần model, không cần mạng
 ```
 
+Nạp giọng mẫu:
+
+```
+python tao_voice.py --them-giong FILE [tuỳ chọn]
+
+--kenh TERCO1             tên kênh (không có thì tool hỏi)
+--model portuguese        model cho kênh đó
+--tu 12  --den 38         chỉ lấy đoạn từ giây 12 đến giây 38
+--ghi-de                  ghi đè giọng cũ, không giữ bản cũ
+--khong-thu               nạp xong không đọc thử
+--cau-thu "..."           câu dùng để đọc thử
+```
+
 Mặc định hàng đợi được **gom theo model** để mỗi model chỉ phải nạp một lần —
 chạy 10 file TERCO1 + 10 file GODSAYS chỉ nạp 2 model thay vì nạp đi nạp lại.
 
@@ -162,8 +194,9 @@ Mọi thứ đều ghi vào `logs\tao_voice_<ngày>.log` (log file chi tiết h�
 | `Khong tim thay Python` | chưa tích “Add python.exe to PATH” lúc cài Python |
 | `Thieu thu vien pocket-tts` | chưa chạy `CAI_DAT.bat` |
 | `Khong co file giong mau` | thiếu file trong `voices\` → đang dùng giọng có sẵn của model |
-| Giọng ra rè, méo | file giọng mẫu không phải WAV 16-bit, hoặc có nhạc nền |
+| Giọng ra rè, méo | mẫu bị vỡ tiếng hoặc có nhạc nền — nạp lại bằng `THEM_GIONG.bat` |
 | Giọng không giống mẫu | mẫu quá ngắn / nhiều người nói / sai ngôn ngữ so với model |
+| Nạp giọng bị từ chối | mẫu dưới 4 giây; dùng `--tu`/`--den` để lấy đúng đoạn nói |
 | SRT lệch | đổi `--whisper-model medium`; nếu thiếu faster-whisper thì SRT chỉ là ước lượng |
 | Chạy chậm bất thường | `--luong` để quá cao, hoặc đang dùng model `*_24l` |
 
@@ -174,6 +207,7 @@ Xoá `.cache_voice\` nếu muốn tool mã hoá lại giọng mẫu từ đầu.
 ```
 Tool-tao-voice\
 ├─ TAO_VOICE.bat       ← kéo thả / bấm đúp để chạy
+├─ THEM_GIONG.bat      ← kéo thả file audio để nạp giọng clone
 ├─ CAI_DAT.bat         ← cài đặt 1 lần
 ├─ tao_voice.py        ← toàn bộ tool
 ├─ channels.json       ← khai báo kênh: model + giọng + độ dài nghỉ

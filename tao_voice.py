@@ -5,10 +5,14 @@ TAO_VOICE - Tool doc kich ban thanh giong noi (Windows, CPU-only).
 Dua tren pocket-tts cua Kyutai (https://github.com/kyutai-labs/pocket-tts)
 va faster-whisper de xuat phu de SRT.
 
-Cach chay nhanh nhat: keo tha file/thu muc vao TAO_VOICE.bat
-Hoac:  python tao_voice.py                  -> chay het hang doi trong KB_CHO/
-       python tao_voice.py KB_CHO\\a.txt     -> chay 1 file
-       python tao_voice.py --tu-kiem-tra    -> test duong ong, khong can model
+Cach chay nhanh nhat:
+    keo tha file am thanh vao THEM_GIONG.bat  -> nap giong mau de clone
+    keo tha file/thu muc .txt vao TAO_VOICE.bat -> doc thanh WAV + SRT
+
+Hoac:  python tao_voice.py                        -> chay het hang doi trong KB_CHO/
+       python tao_voice.py KB_CHO\\a.txt           -> chay 1 file
+       python tao_voice.py --them-giong mau.mp3   -> nap giong mau
+       python tao_voice.py --tu-kiem-tra          -> test duong ong, khong can model
 
 Quy uoc trong file kich ban (.txt):
   - Dau cham/cham than/cham hoi ket cau  -> nghi NGAN
@@ -885,7 +889,265 @@ def ghi_srt(duong_dan: Path, cue: Sequence[Cue]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Xu ly 1 file kich ban
+# 7. Nap giong mau de clone
+# ---------------------------------------------------------------------------
+
+# Nguong danh gia chat luong giong mau
+GIAY_TOI_THIEU = 4.0     # ngan hon thi clone rat kem
+GIAY_KHUYEN_NGHI = 8.0   # duoi muc nay chi la canh bao
+GIAY_TOI_DA = 30.0       # pocket-tts chi dung 30 giay dau
+
+
+def doc_am_thanh(duong_dan: Path) -> tuple["object", int]:
+    """Doc file am thanh bat ky -> (mang float32 mono, sample rate)."""
+    np = _np()
+
+    if duong_dan.suffix.lower() == ".wav":
+        try:
+            with wave.open(str(duong_dan), "rb") as f:
+                if f.getsampwidth() == 2:
+                    sr = f.getframerate()
+                    so_kenh = f.getnchannels()
+                    tho = np.frombuffer(f.readframes(-1), dtype="<i2").astype(np.float32) / 32768.0
+                    if so_kenh > 1:
+                        tho = tho.reshape(-1, so_kenh).mean(axis=1)
+                    return tho.astype(np.float32), sr
+        except Exception:
+            pass  # WAV la -> de soundfile lo
+
+    try:
+        import soundfile as sf
+    except ImportError as loi:
+        raise RuntimeError(
+            f"Khong doc duoc {duong_dan.name}: can thu vien soundfile.\n"
+            "Chay CAI_DAT.bat, hoac:  pip install soundfile"
+        ) from loi
+
+    du_lieu, sr = sf.read(str(duong_dan), dtype="float32", always_2d=True)
+    return du_lieu.mean(axis=1).astype(np.float32), int(sr)
+
+
+def kiem_tra_giong(am: "object", sample_rate: int) -> list[tuple[str, str]]:
+    """Soi chat luong giong mau -> danh sach (muc_do, thong_diep).
+
+    muc_do: 'LOI' = khong dung duoc, 'CANH BAO' = van chay nhung ket qua kem,
+            'OK' = so lieu binh thuong, chi de bao cao.
+    """
+    np = _np()
+    nhan_xet: list[tuple[str, str]] = []
+    giay = am.size / sample_rate
+
+    if giay < GIAY_TOI_THIEU:
+        nhan_xet.append(("LOI", f"Mau chi dai {giay:.1f}s, qua ngan de clone (can it nhat {GIAY_TOI_THIEU:.0f}s)."))
+    elif giay < GIAY_KHUYEN_NGHI:
+        nhan_xet.append(("CANH BAO", f"Mau dai {giay:.1f}s, hoi ngan. Tot nhat la 10-30 giay."))
+    elif giay > GIAY_TOI_DA:
+        nhan_xet.append(("OK", f"Mau dai {giay:.1f}s -> se cat lay {GIAY_TOI_DA:.0f} giay dep nhat."))
+    else:
+        nhan_xet.append(("OK", f"Do dai {giay:.1f}s - vua dep."))
+
+    if sample_rate < 16000:
+        nhan_xet.append(("CANH BAO", f"Sample rate chi {sample_rate} Hz, giong se bi duc. Nen tu 24000 Hz tro len."))
+
+    dinh = float(np.max(np.abs(am))) if am.size else 0.0
+    if dinh < 1e-6:
+        nhan_xet.append(("LOI", "File hoan toan im lang."))
+        return nhan_xet
+    so_cham_tran = int(np.count_nonzero(np.abs(am) >= 0.999))
+    if so_cham_tran > am.size * 0.001:
+        nhan_xet.append(("CANH BAO", f"Co {so_cham_tran * 100.0 / am.size:.1f}% mau bi vo tieng (clipping) -> giong se re."))
+    if dinh < 0.05:
+        nhan_xet.append(("CANH BAO", f"Am luong rat nho (dinh {20 * np.log10(dinh):.0f} dBFS)."))
+
+    # Nang luong theo khung 20ms -> uoc luong nen im lang va do on
+    khung = max(1, int(sample_rate * 0.02))
+    so_khung = am.size // khung
+    if so_khung >= 10:
+        muc = np.abs(am[: so_khung * khung].reshape(so_khung, khung)).max(axis=1)
+        nen = float(np.percentile(muc, 10))
+        tieng = float(np.percentile(muc, 90))
+        ty_le_lang = float(np.count_nonzero(muc < max(nen * 2, tieng * 0.08))) / so_khung
+
+        if tieng > 1e-6:
+            if nen <= 1e-9:
+                nhan_xet.append(("OK", "Rat sach, khong do duoc nen on."))
+            else:
+                snr = 20 * np.log10(tieng / nen)
+                if snr < 12:
+                    nhan_xet.append(("CANH BAO", f"Nen on/nhac kha to (SNR ~{snr:.0f} dB). Nen dung ban thu sach, khong nhac nen."))
+                else:
+                    nhan_xet.append(("OK", f"Do sach ~{snr:.0f} dB SNR."))
+
+        if ty_le_lang > 0.45:
+            nhan_xet.append(("CANH BAO", f"{ty_le_lang * 100:.0f}% la khoang lang -> nen cat lay doan noi lien mach."))
+
+    return nhan_xet
+
+
+def chuan_bi_giong(am: "object", sample_rate: int, tu: float | None, den: float | None):
+    """Cat doan can dung, bo lang dau/cuoi, gioi han 30 giay, chuan am luong."""
+    np = _np()
+
+    if tu is not None or den is not None:
+        i0 = int(max(0.0, tu or 0.0) * sample_rate)
+        i1 = int(min(am.size / sample_rate, den) * sample_rate) if den else am.size
+        am = am[i0:i1]
+
+    am = cat_lang(am, sample_rate, le=0.08)
+
+    gioi_han = int(GIAY_TOI_DA * sample_rate)
+    if am.size > gioi_han:
+        # cat o cho im lang gan moc 30 giay nhat de khong dut giua chung mot tu
+        khung = max(1, int(sample_rate * 0.02))
+        vung = am[int(gioi_han * 0.85) : gioi_han]
+        so_khung = vung.size // khung
+        if so_khung >= 5:
+            muc = np.abs(vung[: so_khung * khung].reshape(so_khung, khung)).max(axis=1)
+            cat_tai = int(gioi_han * 0.85) + int(np.argmin(muc)) * khung
+        else:
+            cat_tai = gioi_han
+        am = am[:cat_tai]
+
+    return chuan_bien_do(am, dinh_db=-3.0).astype(np.float32)
+
+
+def _don_cache_giong(ten_kenh: str) -> None:
+    """Xoa cache cua giong cu cung ten kenh (file moi se duoc ma hoa lai)."""
+    if not THU_MUC_CACHE.is_dir():
+        return
+    for p in THU_MUC_CACHE.glob(f"{ten_kenh}_*"):
+        try:
+            p.unlink()
+            log.debug("Da xoa cache cu: %s", p.name)
+        except OSError:
+            pass
+
+
+def ghi_kenh_vao_cau_hinh(ten_kenh: str, ten_model: str, ten_file_giong: str) -> None:
+    """Them/cap nhat muc kenh trong channels.json, giu nguyen phan con lai."""
+    cau_hinh = doc_cau_hinh()
+    cac_kenh = cau_hinh.setdefault("kenh", {})
+
+    # giu dung chu hoa/thuong da co neu kenh nay ton tai roi
+    khoa = next((k for k in cac_kenh if str(k).upper() == ten_kenh), ten_kenh)
+    muc = dict(cac_kenh.get(khoa) or {})
+    muc["model"] = ten_model
+    muc["voice"] = ten_file_giong
+    cac_kenh[khoa] = muc
+
+    FILE_CAU_HINH.write_text(
+        json.dumps(cau_hinh, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    log.info("Da ghi vao channels.json: \"%s\": %s", khoa, json.dumps(muc, ensure_ascii=False))
+
+
+def nap_giong_mau(tuy_chon: argparse.Namespace) -> int:
+    """Nap mot file am thanh bat ky thanh giong mau cua mot kenh."""
+    nguon = Path(tuy_chon.them_giong).expanduser()
+    if not nguon.is_file():
+        log.error("Khong thay file: %s", nguon)
+        return 2
+
+    log.info("=" * 68)
+    log.info("NAP GIONG MAU: %s", nguon.name)
+    log.info("=" * 68)
+
+    # -- 1. Doc + soi chat luong ------------------------------------------
+    try:
+        am, sample_rate = doc_am_thanh(nguon)
+    except Exception as loi:
+        log.error("%s", loi)
+        return 2
+
+    log.info("File goc : %.1f giay, %d Hz", am.size / max(1, sample_rate), sample_rate)
+    log.info("")
+    log.info("KIEM TRA CHAT LUONG")
+    co_loi = False
+    for muc_do, thong_diep in kiem_tra_giong(am, sample_rate):
+        if muc_do == "LOI":
+            co_loi = True
+            log.error("  [LOI]      %s", thong_diep)
+        elif muc_do == "CANH BAO":
+            log.warning("  [CANH BAO] %s", thong_diep)
+        else:
+            log.info("  [OK]       %s", thong_diep)
+    if co_loi:
+        log.error("")
+        log.error("Mau nay khong dung duoc. Hay thu mot ban thu khac.")
+        return 2
+
+    # -- 2. Ten kenh + model ----------------------------------------------
+    ten_kenh = (tuy_chon.kenh or "").strip().upper()
+    if not ten_kenh:
+        try:
+            ten_kenh = input("Ten kenh (vi du TERCO1, GODSAYS): ").strip().upper()
+        except EOFError:
+            ten_kenh = ""
+    if not re.fullmatch(r"[A-Z0-9]+", ten_kenh or ""):
+        log.error("Ten kenh phai la chu va so khong dau, khong khoang trang (vi du: TERCO1).")
+        return 2
+
+    cau_hinh = doc_cau_hinh()
+    da_co = {str(k).upper(): v for k, v in (cau_hinh.get("kenh") or {}).items()}.get(ten_kenh) or {}
+    ten_model = (tuy_chon.model or da_co.get("model") or "english").strip()
+    if ten_model not in danh_sach_model():
+        log.error("Model '%s' khong co. Cac ten dung duoc: %s", ten_model, ", ".join(danh_sach_model()))
+        return 2
+
+    # -- 3. Chuan bi + ghi file giong -------------------------------------
+    xu_ly = chuan_bi_giong(am, sample_rate, tuy_chon.tu, tuy_chon.den)
+    if xu_ly.size / sample_rate < GIAY_TOI_THIEU:
+        log.error("Sau khi cat chi con %.1f giay - qua ngan. Chinh lai --tu/--den.", xu_ly.size / sample_rate)
+        return 2
+
+    THU_MUC_GIONG.mkdir(parents=True, exist_ok=True)
+    dich = THU_MUC_GIONG / f"{ten_kenh}.wav"
+    if dich.exists() and not tuy_chon.ghi_de:
+        luu = THU_MUC_GIONG / f"{ten_kenh}_cu_{time.strftime('%Y%m%d_%H%M%S')}.wav"
+        shutil.move(str(dich), str(luu))
+        log.info("Giong cu duoc doi ten thanh %s", luu.name)
+
+    ghi_wav(dich, xu_ly, sample_rate)
+    _don_cache_giong(ten_kenh)
+    log.info("")
+    log.info("DA LUU  : %s (%.1f giay, %d Hz, WAV 16-bit mono)",
+             dich.name, xu_ly.size / sample_rate, sample_rate)
+
+    ghi_kenh_vao_cau_hinh(ten_kenh, ten_model, dich.name)
+    log.info("Tu gio moi file KB_CHO\\%s_*.txt se doc bang giong nay.", ten_kenh)
+
+    # -- 4. Doc thu mot cau ------------------------------------------------
+    if tuy_chon.khong_thu:
+        return 0
+
+    log.info("")
+    log.info("Doc thu mot cau bang giong vua nap (lan dau phai nap model, hoi lau)...")
+    cau_thu = tuy_chon.cau_thu
+    if not cau_thu:
+        try:
+            from pocket_tts.default_parameters import get_default_text_for_language
+
+            cau_thu = get_default_text_for_language(ten_model)
+        except Exception:
+            cau_thu = "This is a test of the cloned voice. One, two, three."
+
+    try:
+        engine = MayDocGiong(1, None, tuy_chon.luong)
+        trang_thai = engine.trang_thai_giong(ten_model, dich, None)
+        am_thu = engine.doc_voi_model(ten_model, trang_thai, cau_thu, None)
+        file_thu = THU_MUC_RA / "_THU_GIONG" / f"{ten_kenh}_thu.wav"
+        ghi_wav(file_thu, chuan_bien_do(am_thu), engine.sample_rate)
+        log.info("")
+        log.info("BAN THU : %s", file_thu)
+        log.info("Nghe thu file do. Neu chua giong thi nap lai bang mot ban thu khac.")
+    except Exception as loi:
+        log.warning("Khong doc thu duoc (%s). Giong van da luu, cu chay hang doi binh thuong.", loi)
+
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# 8. Xu ly 1 file kich ban
 # ---------------------------------------------------------------------------
 
 
@@ -1008,7 +1270,7 @@ def xu_ly_mot_file(
 
 
 # ---------------------------------------------------------------------------
-# 8. Hang doi
+# 9. Hang doi
 # ---------------------------------------------------------------------------
 
 
@@ -1042,7 +1304,7 @@ def sap_xep_theo_kenh(hang_doi: list[Path], cau_hinh: dict) -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
-# 9. Tu kiem tra
+# 10. Tu kiem tra
 # ---------------------------------------------------------------------------
 
 
@@ -1127,7 +1389,7 @@ def tu_kiem_tra() -> int:
 
 
 # ---------------------------------------------------------------------------
-# 10. CLI
+# 11. CLI
 # ---------------------------------------------------------------------------
 
 
@@ -1161,6 +1423,17 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
                    help="Chay dung thu tu ten file (mac dinh gom theo model cho nhanh)")
     p.add_argument("--chi-tiet", action="store_true", help="In them log go roi")
     p.add_argument("--tu-kiem-tra", action="store_true", help="Chay thu duong ong, khong can model")
+
+    nhom = p.add_argument_group("nap giong mau de clone (THEM_GIONG.bat)")
+    nhom.add_argument("--them-giong", metavar="FILE",
+                      help="Nap 1 file am thanh thanh giong mau cua mot kenh")
+    nhom.add_argument("--kenh", metavar="TEN", help="Ten kenh, vi du TERCO1 (khong co thi tool hoi)")
+    nhom.add_argument("--model", metavar="TEN", help="Model cho kenh do, vi du portuguese")
+    nhom.add_argument("--tu", type=float, metavar="GIAY", help="Chi lay tu giay thu may")
+    nhom.add_argument("--den", type=float, metavar="GIAY", help="Chi lay den giay thu may")
+    nhom.add_argument("--ghi-de", action="store_true", help="Ghi de giong cu, khong luu ban cu")
+    nhom.add_argument("--khong-thu", action="store_true", help="Nap xong khong doc thu")
+    nhom.add_argument("--cau-thu", metavar="CAU", help="Cau dung de doc thu")
     return p.parse_args(list(argv))
 
 
@@ -1178,6 +1451,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for thu_muc in (THU_MUC_VAO, THU_MUC_GIONG, THU_MUC_RA):
         thu_muc.mkdir(parents=True, exist_ok=True)
+
+    if tuy_chon.them_giong:
+        return nap_giong_mau(tuy_chon)
 
     cau_hinh = doc_cau_hinh()
     hang_doi = gom_hang_doi(tuy_chon.dau_vao)

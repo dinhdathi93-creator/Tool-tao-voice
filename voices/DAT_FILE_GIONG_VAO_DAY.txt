@@ -1,6 +1,12 @@
 DAT FILE GIONG MAU VAO THU MUC NAY
 ==================================
 
+CACH DE NHAT: keo tha file am thanh vao THEM_GIONG.bat
+Tool se tu kiem tra chat luong, chuyen dinh dang, cat 30 giay dep nhat,
+luu vao day, ghi vao channels.json va doc thu mot cau cho ban nghe.
+
+Neu muon tu tay dat file vao day thi doc tiep.
+
 Quy tac dat ten: <TEN_KENH>.wav
     voices\TERCO1.wav      -> dung cho moi file KB_CHO\TERCO1_*.txt
     voices\GODSAYS.wav     -> dung cho moi file KB_CHO\GODSAYS_*.txt
