@@ -115,6 +115,7 @@ CAU_HINH_MAU = {
         "temperature": None,
         "whisper_lang": None,
         "quantize": False,
+        "whisper_model": "small",
     },
     "kenh": {
         "TERCO1": {"model": "portuguese", "voice": "TERCO1.wav"},
@@ -1431,8 +1432,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     p.add_argument("dau_vao", nargs="*", help="File .txt hoac thu muc (mac dinh: KB_CHO)")
     p.add_argument("--lam-lai", action="store_true", help="Lam lai ca nhung file da co trong XONG")
     p.add_argument("--khong-srt", action="store_true", help="Chi xuat WAV, khong chay whisper")
-    p.add_argument("--whisper-model", default=os.environ.get("TAO_VOICE_WHISPER", "small"),
-                   help="tiny/base/small/medium/large-v3 (mac dinh: small)")
+    p.add_argument("--whisper-model", default=None,
+                   help="tiny/base/small/medium/large-v3 (mac dinh: lay tu channels.json)")
     p.add_argument("--luong", type=int, default=None, help="So luong CPU thread (mac dinh: tu chon)")
     p.add_argument("--nhanh", action="store_true",
                    help="Nen model xuong int8: nhanh hon ~27%%, do RAM ~48%%, giong khong doi")
@@ -1494,7 +1495,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         cfg = lay_cau_hinh_kenh(p.name, cau_hinh, im_lang=True)
         log.info("  %2d. %-44s [%s / %s]", i, p.name, cfg.ten, cfg.model)
 
-    quantize = tuy_chon.nhanh or bool((cau_hinh.get("mac_dinh") or {}).get("quantize", False))
+    mac_dinh = cau_hinh.get("mac_dinh") or {}
+    # Thu tu uu tien: tham so dong lenh > channels.json > bien moi truong > 'small'
+    if not tuy_chon.whisper_model:
+        tuy_chon.whisper_model = (
+            mac_dinh.get("whisper_model") or os.environ.get("TAO_VOICE_WHISPER") or "small"
+        )
+    log.info("Phu de   : faster-whisper '%s'", tuy_chon.whisper_model)
+
+    quantize = tuy_chon.nhanh or bool(mac_dinh.get("quantize", False))
     if quantize:
         log.info("CHE DO NHANH: model chay int8 (nhanh hon, it RAM hon, giong khong doi).")
     engine = MayDocGiong(len(hang_doi), tuy_chon.temperature, tuy_chon.luong, quantize)
