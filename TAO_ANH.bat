@@ -44,16 +44,13 @@ if errorlevel 1 (
     echo.
 )
 
-rem --- 3. Kiem tra config --------------------------------------
-if not exist "config.json" (
-    echo [!] Chua co config.json, dang tao file mau...
-    %PY% tao_anh.py --tu-kiem-tra >nul 2>&1
-)
+rem --- 3. Chay ---------------------------------------------------
+rem  Chua co config.json thi tao_anh.py tu tao roi huong dan, khong chay tiep.
 
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
 
-rem --- 4. Chay --------------------------------------------------
+rem --- 4. Goi python ---------------------------------------------
 if "%~1"=="" (
     echo [*] Khong co file keo tha -^> chay het hang doi trong PROMPT_CHO\
     echo.

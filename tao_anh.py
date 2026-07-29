@@ -178,9 +178,9 @@ def doc_cau_hinh() -> dict:
             FILE_CAU_HINH.write_text(
                 json.dumps(CAU_HINH_MAU, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
             )
-        log.info("Da tao file cau hinh mau: %s", FILE_CAU_HINH.name)
-        log.info("Mo config.json dan API key Gemini va sua duong dan thu muc anh.")
-        return json.loads(json.dumps(CAU_HINH_MAU))
+        cau_hinh = json.loads(FILE_CAU_HINH.read_text(encoding="utf-8-sig"))
+        cau_hinh["_vua_tao"] = True
+        return cau_hinh
 
     try:
         nguoi_dung = json.loads(FILE_CAU_HINH.read_text(encoding="utf-8-sig"))
@@ -1301,6 +1301,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         thu_muc.mkdir(parents=True, exist_ok=True)
 
     cau_hinh = doc_cau_hinh()
+
+    if cau_hinh.pop("_vua_tao", False):
+        log.info("")
+        log.info("Chua co config.json nen tool vua tao mot file mau cho ban.")
+        log.info("=" * 70)
+        log.info("CAN LAM TRUOC KHI CHAY:")
+        log.info("  1. Mo file config.json (bam chuot phai > Open with > Notepad)")
+        log.info("  2. Dan API key Gemini vao muc gemini.api_keys")
+        log.info("     (lay key mien phi tai https://aistudio.google.com/apikey)")
+        log.info("  3. Sua thu_muc_ra cua tung kenh cho dung o dia cua ban")
+        log.info("     nho viet 2 gach nguoc: \"D:\\\\KHO_ANH_TERCO1\"")
+        log.info("  4. Luu lai roi chay lai TAO_ANH.bat")
+        log.info("")
+        log.info("Chua co key van chay duoc Pollinations:  python tao_anh.py --chi-pollinations")
+        log.info("=" * 70)
+        return 0
 
     if tuy_chon.chi_pollinations:
         for muc in (cau_hinh.get("kenh") or {}).values():
