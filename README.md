@@ -182,9 +182,13 @@ MacBook Air M4, PC Windows tầm trung thường 1.5–3x). Một kịch bản 1
 5–10 phút đọc, cộng thêm phần whisper.
 
 Muốn nhanh hơn:
+- **`--nhanh`** — nén model xuống int8: nhanh hơn ~27%, tốn ít RAM hơn ~48%, **giọng không đổi**.
+  Máy đời cũ hoặc RAM 8 GB thì nên bật hẳn: sửa `"quantize": true` trong `channels.json`.
+- **`--whisper-model base`** — phụ đề lấy *chữ từ kịch bản*, whisper chỉ đóng góp mốc thời gian,
+  nên model nhỏ hơn không làm sai chữ, chỉ kém chính xác mốc một chút. Nhanh hơn `small` khoảng 2 lần.
+  Muốn đặt vĩnh viễn: `setx TAO_VOICE_WHISPER base`
 - `--khong-srt` rồi làm phụ đề sau
-- `--whisper-model tiny` hoặc `base`
-- `--luong 4` (thường không nên vượt số nhân vật lý)
+- `--luong 4` (đặt bằng số **nhân vật lý**, không tính siêu phân luồng; đặt cao hơn thường chậm hơn)
 
 RAM: mỗi model ~0.5 GB. Chạy 2 kênh khác ngôn ngữ trong cùng một lần thì cả hai
 cùng nằm trong RAM.

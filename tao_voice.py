@@ -102,6 +102,8 @@ CAU_HINH_MAU = {
         "model: ten config pocket-tts (english, portuguese, italian, spanish, french, german...).",
         "voice: ten file giong mau nam trong thu muc voices/ (WAV 10-30 giay la dep nhat).",
         "nghi_ngan / nghi_dai / nghi_doan_dai: do dai khoang lang, tinh bang giay.",
+        "quantize: true = nen model xuong int8, nhanh hon ~27% va do RAM ~48% tren CPU Intel/AMD."
+        " Nen bat neu may doi cu. Chat luong giong khong doi.",
     ],
     "mac_dinh": {
         "model": "english",
@@ -112,6 +114,7 @@ CAU_HINH_MAU = {
         "duoi_file": 0.50,
         "temperature": None,
         "whisper_lang": None,
+        "quantize": False,
     },
     "kenh": {
         "TERCO1": {"model": "portuguese", "voice": "TERCO1.wav"},
@@ -493,12 +496,19 @@ def ghi_wav(duong_dan: Path, am: "object", sample_rate: int) -> None:
 class MayDocGiong:
     """Nap va giu lai model pocket-tts + trang thai giong, dung chung cho ca hang doi."""
 
-    def __init__(self, so_luong: int, temperature_ep: float | None = None, luong: int | None = None):
+    def __init__(
+        self,
+        so_luong: int,
+        temperature_ep: float | None = None,
+        luong: int | None = None,
+        quantize: bool = False,
+    ):
         self._model: dict[str, object] = {}
         self._giong: dict[tuple[str, str], object] = {}
         self.so_luong = so_luong
         self.temperature_ep = temperature_ep
         self.luong = luong
+        self.quantize = quantize
         self.sample_rate = SAMPLE_RATE_MAC_DINH
 
     # -- nap model ---------------------------------------------------------
@@ -527,13 +537,26 @@ class MayDocGiong:
 
         if self.luong:
             torch.set_num_threads(max(1, self.luong))
-        log.info("Nap model pocket-tts '%s' (lan dau se tai ve, hoi lau)...", ten_model)
+        log.info(
+            "Nap model pocket-tts '%s'%s (lan dau se tai ve, hoi lau)...",
+            ten_model,
+            " [int8, che do nhanh]" if self.quantize else "",
+        )
         t0 = time.time()
         nhiet = self.temperature_ep if self.temperature_ep is not None else temperature
         # Ban pocket-tts phat hanh khong nhan temp=None -> chi truyen khi co gia tri,
         # de model tu lay 'default_temperature' trong config cua no.
         them = {"temp": float(nhiet)} if nhiet is not None else {}
-        model = TTSModel.load_model(language=ten_model, **them)
+        if self.quantize:
+            them["quantize"] = True
+        try:
+            model = TTSModel.load_model(language=ten_model, **them)
+        except TypeError as loi:
+            if not self.quantize:
+                raise
+            log.warning("Ban pocket-tts nay khong co che do int8 (%s) -> nap binh thuong.", loi)
+            them.pop("quantize", None)
+            model = TTSModel.load_model(language=ten_model, **them)
         model.to("cpu")
         self._model[ten_model] = model
         self.sample_rate = int(model.sample_rate)
@@ -1411,6 +1434,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     p.add_argument("--whisper-model", default=os.environ.get("TAO_VOICE_WHISPER", "small"),
                    help="tiny/base/small/medium/large-v3 (mac dinh: small)")
     p.add_argument("--luong", type=int, default=None, help="So luong CPU thread (mac dinh: tu chon)")
+    p.add_argument("--nhanh", action="store_true",
+                   help="Nen model xuong int8: nhanh hon ~27%%, do RAM ~48%%, giong khong doi")
     p.add_argument("--temperature", type=float, default=None, help="Ep temperature cho moi kenh")
     p.add_argument("--khong-cat-lang", dest="cat_lang", action="store_false",
                    help="Giu nguyen khoang lang model tu sinh o dau/cuoi cau")
@@ -1469,7 +1494,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         cfg = lay_cau_hinh_kenh(p.name, cau_hinh, im_lang=True)
         log.info("  %2d. %-44s [%s / %s]", i, p.name, cfg.ten, cfg.model)
 
-    engine = MayDocGiong(len(hang_doi), tuy_chon.temperature, tuy_chon.luong)
+    quantize = tuy_chon.nhanh or bool((cau_hinh.get("mac_dinh") or {}).get("quantize", False))
+    if quantize:
+        log.info("CHE DO NHANH: model chay int8 (nhanh hon, it RAM hon, giong khong doi).")
+    engine = MayDocGiong(len(hang_doi), tuy_chon.temperature, tuy_chon.luong, quantize)
     ket_qua: list[KetQua] = []
     t_tong = time.time()
 

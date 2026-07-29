@@ -6,26 +6,26 @@
     "voice: ten file giong mau nam trong thu muc voices/ (WAV 16-bit mono 10-30 giay la dep nhat).",
     "nghi_ngan / nghi_dai / nghi_doan_dai: do dai khoang lang, tinh bang giay.",
     "temperature: de null cho model tu chon; 0.3-0.5 = deu deu, 0.7-0.9 = nhieu cam xuc hon.",
-    "whisper_lang: de null cho tu suy ra tu model (english -> en, portuguese -> pt)."
+    "whisper_lang: de null cho tu suy ra tu model (english -> en, portuguese -> pt).",
+    "quantize: true = nen model xuong int8, nhanh hon ~27% va do RAM ~48% tren CPU Intel/AMD. Nen bat neu may doi cu hoac RAM 8GB. Chat luong giong khong doi."
   ],
-
   "mac_dinh": {
     "model": "english",
     "voice": "",
-    "nghi_ngan": 0.30,
+    "nghi_ngan": 0.3,
     "nghi_dai": 0.85,
-    "nghi_doan_dai": 1.60,
-    "duoi_file": 0.50,
+    "nghi_doan_dai": 1.6,
+    "duoi_file": 0.5,
     "temperature": null,
-    "whisper_lang": null
+    "whisper_lang": null,
+    "quantize": false
   },
-
   "kenh": {
     "TERCO1": {
       "model": "portuguese",
       "voice": "TERCO1.wav",
       "nghi_ngan": 0.35,
-      "nghi_dai": 1.00
+      "nghi_dai": 1.0
     },
     "GODSAYS": {
       "model": "english",
