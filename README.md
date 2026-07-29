@@ -1,3 +1,7 @@
+> Repo này có 2 tool:
+> **TAO_VOICE** (dưới đây) đọc kịch bản thành giọng nói, và
+> **[TAO_ANH](README_ANH.md)** tạo ảnh AI hàng loạt cho 5 kênh.
+
 # TAO_VOICE — đọc kịch bản .txt thành WAV + SRT (Windows, CPU-only)
 
 Tool chạy hàng loạt: quét thư mục `KB_CHO/`, mỗi file `.txt` là một kịch bản, đọc thành

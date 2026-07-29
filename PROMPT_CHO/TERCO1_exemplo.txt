@@ -1,0 +1,18 @@
+# File vi du - xoa di khi chay that.
+# Kenh TERCO1 de model "auto": tool tu chon nguon cho tung prompt.
+#   - dong co [P]          -> Gemini
+#   - dong co tu khoa nguoi -> Gemini (ke ca tieng Bo Dao Nha)
+#   - con lai              -> Pollinations (khong ton quota)
+# Moi KHOI cach nhau dong trong = 1 prompt, nen prompt dai viet nhieu dong duoc.
+
+Golden hour light streaming through the windows of an empty old stone church,
+dust in the air, warm cinematic tone, no people, wide 16:9
+
+[P] An elderly woman kneeling in prayer in a candlelit chapel,
+hands clasped, soft warm light on her face, photorealistic, wide 16:9
+
+Uma multidao rezando ao ar livre ao amanhecer, luz dourada suave,
+tom cinematografico, 16:9
+
+A single lit candle on a wooden altar, dark background,
+shallow depth of field, warm glow, 16:9

@@ -18,3 +18,14 @@ voices/*
 KB_CHO/*
 !KB_CHO/GODSAYS_vi_du.txt
 !KB_CHO/TERCO1_exemplo.txt
+
+# --- tao_anh ---
+# config.json chua API KEY -> tuyet doi khong day len git
+config.json
+!config.mau.json
+ANH_RA/
+PROMPT_XONG/*
+!PROMPT_XONG/.gitkeep
+PROMPT_CHO/*
+!PROMPT_CHO/RUNGWORK_vi_du.txt
+!PROMPT_CHO/TERCO1_exemplo.txt

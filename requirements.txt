@@ -3,7 +3,12 @@
 # Luu y: torch nen cai truoc bang ban CPU cho nhe (CAI_DAT.bat da lo):
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 
+# --- tao_voice.py (doc kich ban thanh giong) ---
 pocket-tts>=2.1.0     # engine doc giong cua Kyutai (100M tham so, chay CPU)
 soundfile>=0.12.0     # doc giong mau khong phai WAV 16-bit (mp3, flac, m4a...)
 faster-whisper>=1.0.0 # nhan dang moc thoi gian de xuat SRT
 numpy>=2
+
+# --- tao_anh.py (tao anh AI hang loat) ---
+# Chi can Pillow. Phan goi API dung urllib san co cua Python.
+pillow>=10.0.0        # ep anh ve dung 1920x1080

@@ -1,0 +1,72 @@
+{
+  "_doc": [
+    "DAY LA FILE MAU. Chay tool lan dau se tu tao config.json that tu file nay.",
+    "config.json co API KEY nen bi .gitignore chan, KHONG day len git.",
+    "gemini.api_keys: dan nhieu key vao day, tool tu xoay vong key khi het quota.",
+    "gemini.model: gemini-2.5-flash-image (nano banana) | gemini-3-pro-image-preview (ban Pro).",
+    "kenh.<TEN>.thu_muc_ra: anh luu THANG vao day. Trong JSON nho viet 2 gach nguoc, vi du D:\\KHO_ANH_TERCO1",
+    "kenh.<TEN>.model: auto = tu chon theo tag [P] va tu khoa; gemini / pollinations = ep cung.",
+    "kenh.<TEN>.cam_du_phong: true = cam roi xuong Pollinations, het quota thi cho chay bu.",
+    "chung.uu_tien: cac kenh chay truoc trong hang doi.",
+    "pollinations.cach_nhau_giay: tai khoan an danh bi gioi han 1 anh / 15 giay."
+  ],
+  "gemini": {
+    "api_keys": [
+      "DAN_API_KEY_1_VAO_DAY",
+      "DAN_API_KEY_2_VAO_DAY"
+    ],
+    "model": "gemini-2.5-flash-image",
+    "aspect_ratio": "16:9",
+    "image_size": "2K",
+    "timeout_giay": 180,
+    "nghi_giua_anh": 2.0,
+    "backoff_dau_giay": 60,
+    "backoff_toi_da_giay": 900
+  },
+  "pollinations": {
+    "model": "flux",
+    "token": "",
+    "referrer": "",
+    "nologo": true,
+    "enhance": false,
+    "timeout_giay": 180,
+    "cach_nhau_giay": 15
+  },
+  "anh": {
+    "rong": 1920,
+    "cao": 1080,
+    "dinh_dang": "png",
+    "chat_luong_jpg": 95,
+    "toi_thieu_kb": 20
+  },
+  "chung": {
+    "so_lan_thu": 3,
+    "cho_thu_lai_giay": 5,
+    "uu_tien": [
+      "RUNGWORK"
+    ]
+  },
+  "kenh": {
+    "RUNGWORK": {
+      "thu_muc_ra": "D:\\KHO_ANH_RUNGWORK",
+      "model": "gemini",
+      "cam_du_phong": true
+    },
+    "TERCO1": {
+      "thu_muc_ra": "D:\\KHO_ANH_TERCO1",
+      "model": "auto"
+    },
+    "TERCO2": {
+      "thu_muc_ra": "D:\\KHO_ANH_TERCO2",
+      "model": "auto"
+    },
+    "TERCO3": {
+      "thu_muc_ra": "D:\\KHO_ANH_TERCO3",
+      "model": "auto"
+    },
+    "GODSAYS": {
+      "thu_muc_ra": "D:\\KHO_ANH_GODSAYS",
+      "model": "auto"
+    }
+  }
+}

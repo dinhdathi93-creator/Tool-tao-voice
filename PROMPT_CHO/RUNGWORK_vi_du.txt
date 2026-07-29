@@ -1,0 +1,11 @@
+# File vi du - xoa di khi chay that.
+# Ten file bat dau bang RUNGWORK_ -> kenh RUNGWORK -> ep 100% Gemini,
+# khong bao gio roi xuong Pollinations, het quota thi cho chay bu.
+# Moi dong 1 prompt. So thu tu anh = thu tu dong (001, 002, ...) nen
+# anh khop dung beat trong kich ban, khong can danh so lai.
+
+Flat vector stickman illustration, a junior developer sitting at a messy desk with two monitors, minimal blue and orange palette, white background, wide 16:9
+Flat vector stickman illustration, a mid-level engineer presenting on a whiteboard full of arrows, minimal blue and orange palette, white background, wide 16:9
+Flat vector stickman illustration, a senior engineer reviewing code with a teammate, dual monitors, minimal palette, white background, wide 16:9
+Flat vector stickman illustration, a staff engineer drawing a system architecture diagram, minimal palette, white background, wide 16:9
+Flat vector stickman illustration, a CTO in a glass office looking at company growth charts, minimal palette, white background, wide 16:9
