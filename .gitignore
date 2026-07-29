@@ -1,0 +1,20 @@
+# moi truong python
+.venv/
+__pycache__/
+*.pyc
+
+# ket qua va cache - khong day len git
+XONG/*
+!XONG/.gitkeep
+logs/*
+!logs/.gitkeep
+.cache_voice/
+
+# giong mau la file rieng cua tung kenh, khong day len
+voices/*
+!voices/DAT_FILE_GIONG_VAO_DAY.txt
+
+# kich ban that (giu lai 2 file vi du)
+KB_CHO/*
+!KB_CHO/GODSAYS_vi_du.txt
+!KB_CHO/TERCO1_exemplo.txt

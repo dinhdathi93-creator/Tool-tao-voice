@@ -1,0 +1,25 @@
+DAT FILE GIONG MAU VAO THU MUC NAY
+==================================
+
+Quy tac dat ten: <TEN_KENH>.wav
+    voices\TERCO1.wav      -> dung cho moi file KB_CHO\TERCO1_*.txt
+    voices\GODSAYS.wav     -> dung cho moi file KB_CHO\GODSAYS_*.txt
+    voices\RUNGWORK.wav    -> ...
+
+Hoac khai bao ro trong channels.json:
+    "TERCO1": { "model": "portuguese", "voice": "giong_cha_A.wav" }
+
+Yeu cau file giong mau (rat quan trong, sai la giong ra te):
+  - Dinh dang : WAV, 16-bit PCM, MONO
+  - Do dai    : 10 - 30 giay (dai hon 30 giay se bi cat con 30)
+  - Noi dung  : mot nguoi noi lien mach, KHONG nhac nen, KHONG tieng on
+  - Ngon ngu  : trung voi model (giong Bo Dao Nha cho model portuguese...)
+
+Neu chi co file mp3/m4a: cu bo vao day, tool tu chuyen (can co soundfile,
+CAI_DAT.bat da cai san). Nhung xuat san WAV 16-bit van cho ket qua tot nhat.
+
+Chay lan dau, tool se ma hoa giong mau va nho lai trong .cache_voice\,
+nhung lan sau khoi phai ma hoa lai nen nhanh hon nhieu.
+
+Neu thu muc nay trong, tool van chay duoc: no lay giong co san cua model
+(english -> alba, portuguese -> rafael...) va se ghi canh bao trong log.

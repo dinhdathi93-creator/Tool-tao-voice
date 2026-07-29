@@ -1,0 +1,15 @@
+# Arquivo de exemplo - apague quando for usar de verdade.
+# Prefixo TERCO1_ -> canal TERCO1 -> modelo portuguese + voices/TERCO1.wav
+
+[ABERTURA]
+Em nome do Pai, do Filho e do Espirito Santo. Amem.
+Hoje vamos rezar juntos por todas as familias.
+
+Comecamos pedindo a paz para o nosso coracao.
+
+---
+
+Ave Maria, cheia de graca, o Senhor e convosco.
+Bendita sois vos entre as mulheres.
+
+Que a paz de Deus fique com voce hoje e sempre.

@@ -1,0 +1,18 @@
+# File vi du - xoa di khi chay that.
+# Dong bat dau bang # hoac // la ghi chu, tool khong doc.
+# Ten file bat dau bang GODSAYS_ nen tool lay cau hinh kenh GODSAYS trong channels.json.
+
+[HOOK]
+My child, listen to me today. I know the weight you are carrying.
+You have been strong for so long that you forgot how to rest.
+
+Today I am telling you something simple. You are not alone.
+
+---
+
+Trust me with what you cannot control. I have never failed you.
+Say amen if you believe it.
+
+[nghi=2]
+
+And remember this. The morning always comes.
