@@ -166,7 +166,17 @@ TONG KET sau 42.3 phut
 | Pollinations chậm | đúng vậy: tài khoản ẩn danh 15 giây/ảnh, muốn nhanh thì dán `token` |
 | Ảnh không phải 1920×1080 | thiếu Pillow — `pip install pillow` |
 
-## 11. Kiểm tra API key trước khi chạy
+## 11. Nạp và kiểm tra API key
+
+Nạp key **không cần sửa JSON bằng tay** — mỗi key một lệnh, tool tự thêm vào `config.json`
+rồi thử luôn key vừa thêm:
+
+```
+python tao_anh.py --them-key AIzaSy...key_cua_email_1
+python tao_anh.py --them-key AIzaSy...key_cua_email_2
+```
+
+Thêm trùng key cũ thì nó báo và bỏ qua. Kiểm tra lại toàn bộ:
 
 ```
 python tao_anh.py --kiem-tra-key
@@ -180,3 +190,7 @@ copy nguyên chuỗi một dòng.
 
 Chuỗi bắt đầu bằng `AQ.` hoặc `ya29.` là **OAuth access token**, không phải API key: Google
 trả `HTTP 401 – Expected OAuth 2 access token`, và loại token đó còn hết hạn sau khoảng 1 tiếng.
+
+Quota tính **theo project của Google, không theo key**: hai key trong cùng một project dùng
+chung một túi quota nên xoay vòng vô ích. **Mỗi email Google là một tài khoản riêng, quota
+riêng** — lấy mỗi email một key là cách tăng quota chắc chắn nhất.

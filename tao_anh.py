@@ -735,13 +735,41 @@ def _lay_anh_tu_tra_ve(du_lieu: dict) -> bytes:
     raise LoiTamThoi("tra ve rong")
 
 
-def kiem_tra_cac_key(cau_hinh: dict) -> int:
+def them_key(key_moi: str) -> int:
+    """Them mot API key vao config.json ma khong phai tu sua JSON."""
+    key_moi = key_moi.strip().strip('"').strip("'").strip(",")
+    if not key_moi:
+        log.error("Chuoi key rong.")
+        return 2
+
+    cau_hinh = doc_cau_hinh()
+    cau_hinh.pop("_vua_tao", None)
+    cu = cau_hinh["gemini"].get("api_keys") or []
+    giu = [k for k in cu if k and "DAN_API_KEY" not in k]
+
+    if key_moi in giu:
+        log.warning("Key nay da co trong config.json roi (o vi tri #%d).", giu.index(key_moi) + 1)
+        return 0
+
+    giu.append(key_moi)
+    cau_hinh["gemini"]["api_keys"] = giu
+    FILE_CAU_HINH.write_text(
+        json.dumps(cau_hinh, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    che = key_moi[:6] + "..." + key_moi[-4:] if len(key_moi) > 12 else key_moi
+    log.info("Da them key #%d (%s) vao config.json. Tong cong %d key.", len(giu), che, len(giu))
+    log.info("")
+    return kiem_tra_cac_key(cau_hinh, chi_key_cuoi=True)
+
+
+def kiem_tra_cac_key(cau_hinh: dict, chi_key_cuoi: bool = False) -> int:
     """Goi thu tung API key xem key nao song, va model anh co dung duoc khong.
 
     Chi liet ke model nen khong ton quota sinh anh.
     """
     cfg = cau_hinh["gemini"]
     keys = [k for k in (cfg.get("api_keys") or []) if k and "DAN_API_KEY" not in k]
+    bo_qua = len(keys) - 1 if chi_key_cuoi and keys else 0
 
     log.info("=" * 70)
     log.info("KIEM TRA API KEY GEMINI")
@@ -756,6 +784,8 @@ def kiem_tra_cac_key(cau_hinh: dict) -> int:
     so_song = 0
 
     for i, key in enumerate(keys, 1):
+        if i <= bo_qua:
+            continue
         che = key[:6] + "..." + key[-4:] if len(key) > 12 else "(qua ngan)"
         log.info("")
         log.info("Key #%d: %s  (dai %d ky tu)", i, che, len(key))
@@ -810,9 +840,13 @@ def kiem_tra_cac_key(cau_hinh: dict) -> int:
 
     log.info("")
     log.info("=" * 70)
-    log.info("KET QUA: %d/%d key dung duoc.", so_song, len(keys))
+    log.info("KET QUA: %d/%d key dung duoc.", so_song, len(keys) - bo_qua)
     if so_song == 0:
         log.error("Khong co key nao chay duoc -> chua tao duoc anh Gemini.")
+    else:
+        log.info("Nho: quota tinh theo PROJECT chu khong theo key. Hai key cung mot")
+        log.info("project thi dung chung mot tui quota, xoay vong key se khong giup gi.")
+        log.info("Moi email Google = mot tai khoan rieng = mot tui quota rieng.")
     log.info("=" * 70)
     return 0 if so_song else 1
 
@@ -1366,6 +1400,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     p.add_argument("--tu-kiem-tra", action="store_true", help="Chay thu duong ong, khong goi API")
     p.add_argument("--kiem-tra-key", action="store_true",
                    help="Goi thu tung API key Gemini xem key nao song (khong ton quota anh)")
+    p.add_argument("--them-key", metavar="KEY",
+                   help="Them 1 API key vao config.json roi thu luon (khoi phai sua JSON tay)")
     return p.parse_args(list(argv))
 
 
@@ -1383,6 +1419,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for thu_muc in (THU_MUC_VAO, THU_MUC_XONG):
         thu_muc.mkdir(parents=True, exist_ok=True)
+
+    if tuy_chon.them_key:
+        return them_key(tuy_chon.them_key)
 
     cau_hinh = doc_cau_hinh()
 
