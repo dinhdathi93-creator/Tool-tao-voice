@@ -462,6 +462,23 @@ def tim_file_giong(tien_to: str, ten_khai_bao: str | None) -> Path | None:
                 continue
             if duong_dan.stem.upper() == tien_to or duong_dan.stem.upper().startswith(tien_to + "_"):
                 return duong_dan.resolve()
+
+    # Khong tim ra giong nao -> bao TO. Neu chi canh bao nhe, tool se am tham doc
+    # bang giong san cua model va nguoi dung tuong da dung giong rieng cua minh.
+    co_san = []
+    if THU_MUC_GIONG.is_dir():
+        co_san = [p.name for p in sorted(THU_MUC_GIONG.iterdir())
+                  if p.suffix.lower() in duoi_am_thanh]
+    log.error("KENH %s SE KHONG DUNG GIONG RIENG CUA BAN.", tien_to)
+    if ten_khai_bao:
+        log.error("  channels.json khai giong '%s' nhung khong co file do trong voices\\", ten_khai_bao)
+    else:
+        log.error("  channels.json chua khai 'voice' cho kenh nay")
+    if co_san:
+        log.error("  Cac file giong dang co: %s", ", ".join(co_san))
+        log.error("  Sua \"voice\" trong channels.json thanh dung mot trong nhung ten tren.")
+    else:
+        log.error("  Thu muc voices\\ dang trong - keo file am thanh vao THEM_GIONG.bat truoc.")
     return None
 
 
