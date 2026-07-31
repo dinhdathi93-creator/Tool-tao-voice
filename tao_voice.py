@@ -107,6 +107,10 @@ CAU_HINH_MAU = {
         "nghi_ngan / nghi_dai / nghi_doan_dai: do dai khoang lang, tinh bang giay.",
         "quantize: true = nen model xuong int8, nhanh hon ~27% va do RAM ~48% tren CPU Intel/AMD."
         " Nen bat neu may doi cu. Chat luong giong khong doi.",
+        "toc_do: 1.0 = giu nguyen, 0.85 = doc cham hon 15%, 1.15 = nhanh hon 15%."
+        " Cao do giong khong doi.",
+        "cao_do: 0 = giu nguyen, -2 = tram hon 2 nua cung (nam tinh hon), +2 = cao hon."
+        " Do dai khong doi. Qua -4/+4 se bat dau nghe gia tao.",
     ],
     "mac_dinh": {
         "model": "english",
@@ -119,6 +123,8 @@ CAU_HINH_MAU = {
         "whisper_lang": None,
         "quantize": False,
         "whisper_model": "small",
+        "toc_do": 1.0,
+        "cao_do": 0.0,
     },
     "kenh": {
         "TERCO1": {"model": "portuguese", "voice": "TERCO1.wav"},
@@ -397,6 +403,8 @@ class CauHinhKenh:
     duoi_file: float
     temperature: float | None
     whisper_lang: str | None
+    toc_do: float = 1.0
+    cao_do: float = 0.0
 
     @property
     def ma_whisper(self) -> str | None:
@@ -485,6 +493,8 @@ def lay_cau_hinh_kenh(ten_file: str, cau_hinh: dict, im_lang: bool = False) -> C
         duoi_file=float(gop.get("duoi_file", 0.50)),
         temperature=(None if gop.get("temperature") in (None, "") else float(gop["temperature"])),
         whisper_lang=(gop.get("whisper_lang") or None),
+        toc_do=float(gop.get("toc_do", 1.0)),
+        cao_do=float(gop.get("cao_do", 0.0)),
     )
 
 
@@ -679,6 +689,79 @@ def vuot_bien(am: "object", sample_rate: int, ms: float = 8.0):
     am[:n] *= duong
     am[-n:] *= duong[::-1]
     return am
+
+
+def doi_toc_do(am: "object", sample_rate: int, ty_le: float):
+    """Doc cham lai / nhanh len ma KHONG doi cao do giong (WSOLA).
+
+    ty_le < 1 = doc cham hon (0.85 = cham 15%), > 1 = nhanh hon.
+    Cat am thanh thanh cac khung 40ms roi dan lai voi buoc khac di; truoc khi
+    dan thi tim cho khop song nhat trong khoang +-8ms de khong bi rung/vang.
+    """
+    np = _np()
+    if abs(ty_le - 1.0) < 0.01 or am.size < sample_rate // 10:
+        return am
+    ty_le = float(np.clip(ty_le, 0.5, 2.0))
+
+    N = int(sample_rate * 0.040)          # khung 40 ms
+    Hs = N // 2                           # buoc ghep (chong nhau 50%)
+    Ha = max(1, int(round(Hs * ty_le)))   # buoc doc vao
+    tim = int(sample_rate * 0.008)        # tim khop trong +-8 ms
+    cua_so = np.hanning(N).astype(np.float32)
+
+    so_khung = max(1, int((am.size - N - tim) / Ha))
+    ra = np.zeros(so_khung * Hs + N + tim, dtype=np.float32)
+    trong_so = np.zeros_like(ra)
+
+    tiep_theo = am[:N].astype(np.float32)  # doan "chay tiep tu nhien" can khop
+    for i in range(so_khung):
+        giua = i * Ha
+        dau = max(0, giua - tim)
+        cuoi = min(am.size - N, giua + tim)
+        if cuoi <= dau:
+            lay = giua
+        else:
+            vung = am[dau : cuoi + N]
+            if vung.size < N:
+                break
+            # tim doan giong 'tiep_theo' nhat bang tuong quan cheo
+            diem = np.correlate(vung, tiep_theo, mode="valid")
+            lay = dau + int(np.argmax(diem))
+
+        khung = am[lay : lay + N]
+        if khung.size < N:
+            break
+        vi_tri = i * Hs
+        ra[vi_tri : vi_tri + N] += khung * cua_so
+        trong_so[vi_tri : vi_tri + N] += cua_so
+        tiep_theo = am[lay + Hs : lay + Hs + N]
+        if tiep_theo.size < N:
+            break
+
+    co_tieng = trong_so > 1e-6
+    ra[co_tieng] /= trong_so[co_tieng]
+    return np.trim_zeros(ra, "b").astype(np.float32)
+
+
+def doi_cao_do(am: "object", sample_rate: int, nua_cung: float):
+    """Ha/nang cao do giong ma KHONG doi do dai.
+
+    nua_cung < 0 = tram hon (giong dan ong hon), > 0 = cao hon.
+    Cach lam: keo dai ra roi lay mau lai cho ngan ve dung cu -> cao do doi,
+    do dai giu nguyen.
+    """
+    np = _np()
+    if abs(nua_cung) < 0.05 or am.size < sample_rate // 10:
+        return am
+    nua_cung = float(np.clip(nua_cung, -6.0, 6.0))
+
+    ty_le = 2.0 ** (nua_cung / 12.0)      # >1 khi nang cao do
+    keo = doi_toc_do(am, sample_rate, 1.0 / ty_le)
+
+    # lay mau lai: cao do doi dung bang ty_le, do dai tro ve gan nhu cu
+    so_mau_moi = max(1, int(round(keo.size / ty_le)))
+    vi_tri = np.linspace(0, keo.size - 1, so_mau_moi, dtype=np.float64)
+    return np.interp(vi_tri, np.arange(keo.size), keo).astype(np.float32)
 
 
 def chuan_bien_do(am: "object", dinh_db: float = -1.0):
@@ -1431,6 +1514,11 @@ def xu_ly_mot_file(
     log.info("KENH     : %s | model: %s | giong: %s",
              cfg.ten, cfg.model, cfg.giong.name if cfg.giong else "(giong san cua model)")
 
+    if tuy_chon.toc_do is not None:
+        cfg.toc_do = tuy_chon.toc_do
+    if tuy_chon.cao_do is not None:
+        cfg.cao_do = tuy_chon.cao_do
+
     doan = doc_kich_ban(duong_dan, cfg)
     if not doan:
         log.error("File khong co noi dung doc duoc -> bo qua.")
@@ -1439,6 +1527,8 @@ def xu_ly_mot_file(
     tong_chu = sum(len(d.text.split()) for d in doan)
     log.info("NOI DUNG : %d cau, %d tu | nghi ngan %.2fs / nghi dai %.2fs",
              len(doan), tong_chu, cfg.nghi_ngan, cfg.nghi_dai)
+    if abs(cfg.toc_do - 1.0) >= 0.01 or abs(cfg.cao_do) >= 0.05:
+        log.info("GIONG    : toc do x%.2f | cao do %+.1f nua cung", cfg.toc_do, cfg.cao_do)
 
     np = _np()
     trang_thai = engine.trang_thai_giong(cfg.model, cfg.giong, cfg.temperature)
@@ -1457,6 +1547,10 @@ def xu_ly_mot_file(
 
         if tuy_chon.cat_lang:
             am = cat_lang(am, sample_rate)
+        if abs(cfg.toc_do - 1.0) >= 0.01:
+            am = doi_toc_do(am, sample_rate, cfg.toc_do)
+        if abs(cfg.cao_do) >= 0.05:
+            am = doi_cao_do(am, sample_rate, cfg.cao_do)
         am = vuot_bien(am, sample_rate)
 
         mot_doan.bat_dau = tong_mau
@@ -1600,6 +1694,7 @@ def tu_kiem_tra() -> int:
     tuy_chon = argparse.Namespace(
         lam_lai=True, chia_thu_muc=False, cat_lang=False, chuan_am_luong=True,
         khong_srt=False, whisper_model="(khong dung)", luong=None, chuyen_kich_ban=False,
+        toc_do=None, cao_do=None,
     )
     goc_ra = globals()["THU_MUC_RA"]
     goc_whisper = globals()["nhan_dang_bang_whisper"]
@@ -1667,6 +1762,10 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     p.add_argument("--nhanh", action="store_true",
                    help="Nen model xuong int8: nhanh hon ~27%%, do RAM ~48%%, giong khong doi")
     p.add_argument("--temperature", type=float, default=None, help="Ep temperature cho moi kenh")
+    p.add_argument("--toc-do", type=float, default=None, metavar="X",
+                   help="Ep toc do doc: 0.85 = cham hon 15%%, 1.15 = nhanh hon (cao do khong doi)")
+    p.add_argument("--cao-do", type=float, default=None, metavar="N",
+                   help="Ep cao do: -2 = tram hon 2 nua cung, +2 = cao hon (do dai khong doi)")
     p.add_argument("--khong-cat-lang", dest="cat_lang", action="store_false",
                    help="Giu nguyen khoang lang model tu sinh o dau/cuoi cau")
     p.add_argument("--khong-chuan-am-luong", dest="chuan_am_luong", action="store_false",

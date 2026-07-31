@@ -12,6 +12,8 @@ lên mạng. Không tài khoản, không hạn mức, không tốn tiền.
 |---|---|
 | Ngôn ngữ | **English**, **Português (Brasil)**, **Español** |
 | Clone giọng | Bấm *Nạp giọng mới*, chọn file audio 10–30 giây — dùng được ngay |
+| **Tốc độ đọc** | Thanh trượt 0.70x–1.30x — **cao độ không đổi**, không bị méo giọng |
+| **Cao độ giọng** | Thanh trượt −4 → +4 nửa cung — **độ dài không đổi**, kéo xuống là giọng trầm hơn |
 | Ngắt nghỉ | Dấu chấm = nghỉ ngắn, dòng trống = nghỉ dài, `---` = nghỉ rất dài, `[nghi=2.5]` |
 | Chỉnh độ dài nghỉ | 2 ô số ngay trên giao diện |
 | Xuất | Nghe thử tại chỗ, tải **WAV**, tuỳ chọn kèm **SRT** |
@@ -25,7 +27,6 @@ Engine `pocket-tts` chạy trên CPU không có những thứ này — nói trư
 
 - **Tag cảm xúc** `[laughter]`, `[whispering]`, `[sigh]`… — engine không hiểu, sẽ đọc
   nguyên chữ đó ra. Muốn nhấn nhá thì đổi **file giọng mẫu** cho hợp cảm xúc mong muốn.
-- **Chỉnh tốc độ đọc** — không có tham số này. Muốn nhanh/chậm thì chỉnh trong phần mềm dựng video.
 - **Lồng tiếng theo timeline file SRT có sẵn** — công cụ này sinh SRT *ra*, không đọc theo SRT *vào*.
 - **Từ điển phát âm** — chưa có. Cách vòng: viết lại chữ theo cách đọc (ví dụ `Terço` → `Tersso`).
 
@@ -37,6 +38,23 @@ ghi log, và không cần mở trình duyệt.
 
 Hai đường dùng chung một engine, chung thư mục `voices\`, chung `channels.json` — giọng nạp
 bằng giao diện web thì `TAO_VOICE.bat` cũng thấy và ngược lại.
+
+## Chỉnh giọng cho vừa tai
+
+**Đọc nhanh quá** → kéo thanh **Tốc độ** xuống `0.90` hoặc `0.85`. Dưới `0.80` bắt đầu nghe hơi máy móc.
+
+**Giọng mỏng, thiếu trầm** → kéo **Cao độ** xuống `−1.5` đến `−2.5`. Quá `−4` là nghe giả tạo.
+
+**Nhưng cách tốt nhất vẫn là đổi file giọng mẫu.** pocket-tts học cả *nhịp nói* lẫn *chất giọng*
+từ mẫu — mẫu nói nhanh thì đọc ra nhanh, mẫu giọng cao thì ra giọng cao. Chỉnh bằng thanh trượt
+là xử lý sau, còn đổi mẫu là sửa từ gốc, luôn tự nhiên hơn. Muốn giọng trầm và chậm thì tìm mẫu
+của người nói trầm và chậm sẵn, rồi mới tinh chỉnh thêm chút bằng thanh trượt.
+
+Chạy hàng loạt thì đặt trong `channels.json` cho từng kênh:
+
+```json
+"GODSAYS": { "model": "english", "voice": "GODSAYS.wav", "toc_do": 0.88, "cao_do": -1.5 }
+```
 
 ## Mẹo
 

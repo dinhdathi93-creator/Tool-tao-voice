@@ -121,6 +121,8 @@ def chay_cong_viec(viec: CongViec, van_ban: str, tuy_chon: dict) -> None:
             duoi_file=0.4,
             temperature=tuy_chon.get("temperature"),
             whisper_lang=None,
+            toc_do=float(tuy_chon.get("toc_do", 1.0)),
+            cao_do=float(tuy_chon.get("cao_do", 0.0)),
         )
 
         doan = tv.tach_kich_ban(van_ban, cfg)
@@ -140,7 +142,12 @@ def chay_cong_viec(viec: CongViec, van_ban: str, tuy_chon: dict) -> None:
         for i, mot_doan in enumerate(doan, 1):
             viec.cau_dang_doc = mot_doan.text[:70]
             am = engine.doc_voi_model(cfg.model, trang_thai_giong, mot_doan.text, cfg.temperature)
-            am = tv.vuot_bien(tv.cat_lang(am, sample_rate), sample_rate)
+            am = tv.cat_lang(am, sample_rate)
+            if abs(cfg.toc_do - 1.0) >= 0.01:
+                am = tv.doi_toc_do(am, sample_rate, cfg.toc_do)
+            if abs(cfg.cao_do) >= 0.05:
+                am = tv.doi_cao_do(am, sample_rate, cfg.cao_do)
+            am = tv.vuot_bien(am, sample_rate)
 
             mot_doan.bat_dau = tong_mau
             tong_mau += am.size
@@ -211,6 +218,8 @@ def tao_app():
         giong: str = Form(""),
         nghi_ngan: float = Form(0.30),
         nghi_dai: float = Form(0.85),
+        toc_do: float = Form(1.0),
+        cao_do: float = Form(0.0),
         srt: bool = Form(False),
         ten_ra: str = Form(""),
     ):
@@ -226,7 +235,8 @@ def tao_app():
             target=chay_cong_viec,
             args=(viec, van_ban, {
                 "model": model, "giong": giong, "nghi_ngan": nghi_ngan,
-                "nghi_dai": nghi_dai, "srt": srt, "ten_ra": ten_ra,
+                "nghi_dai": nghi_dai, "toc_do": toc_do, "cao_do": cao_do,
+                "srt": srt, "ten_ra": ten_ra,
             }),
             daemon=True,
         ).start()
@@ -333,6 +343,8 @@ button.phu{background:#2c2f3d;color:#e8e9ee;font-weight:500;padding:9px 14px;fon
 .loi{color:#ff8087}
 .dat{color:#c8f24a}
 audio{width:100%;margin-top:12px}
+input[type=range]{width:100%;accent-color:#c8f24a;background:transparent;padding:0}
+.thang{display:flex;justify-content:space-between;font-size:11.5px;color:#6f7488;margin-top:2px}
 ul.nx{list-style:none;padding:0;margin:10px 0 0;font-size:13px}
 ul.nx li{padding:3px 0}
 </style></head><body>
@@ -372,9 +384,19 @@ De mot dong trong thi nghi dai."></textarea>
       </div>
       <div id="nx"></div>
 
-      <label>Nghi ngan (giay)</label>
+      <label>Toc do doc: <b id="td_so">1.00x</b> <span class="mo">(cao do khong doi)</span></label>
+      <input type="range" id="td" min="0.70" max="1.30" step="0.01" value="1.00"
+             oninput="td_so.textContent=(+this.value).toFixed(2)+'x'">
+      <div class="thang"><span>Cham hon</span><span>Nhanh hon</span></div>
+
+      <label>Cao do giong: <b id="cd_so">0.0</b> <span class="mo">nua cung (do dai khong doi)</span></label>
+      <input type="range" id="cd" min="-4" max="4" step="0.5" value="0"
+             oninput="cd_so.textContent=(+this.value).toFixed(1)">
+      <div class="thang"><span>Tram hon</span><span>Cao hon</span></div>
+
+      <label>Nghi ngan (giay) &middot; sau dau cham</label>
       <input type="number" id="nn1" value="0.30" step="0.05" min="0" max="3">
-      <label>Nghi dai (giay)</label>
+      <label>Nghi dai (giay) &middot; sau dong trong</label>
       <input type="number" id="nn2" value="0.85" step="0.05" min="0" max="5">
 
       <label><input type="checkbox" id="srt"> Xuat kem phu de .srt</label>
@@ -432,6 +454,8 @@ async function tao(){
   fd.append('giong', $('#giong').value);
   fd.append('nghi_ngan', $('#nn1').value);
   fd.append('nghi_dai', $('#nn2').value);
+  fd.append('toc_do', $('#td').value);
+  fd.append('cao_do', $('#cd').value);
   fd.append('srt', $('#srt').checked ? 'true' : 'false');
 
   const r = await fetch('/api/doc', {method:'POST', body:fd});
