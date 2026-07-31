@@ -403,7 +403,12 @@ De mot dong trong thi nghi dai."></textarea>
       <label>Nghi dai (giay) &middot; sau dong trong</label>
       <input type="number" id="nn2" value="0.85" step="0.05" min="0" max="5">
 
-      <label><input type="checkbox" id="srt"> Xuat kem phu de .srt</label>
+      <label style="margin-top:16px"><input type="checkbox" id="srt" checked>
+        <b>Xuat kem phu de .srt</b></label>
+      <div class="meo" style="margin-top:4px">
+        Chu trong phu de lay tu chinh kich ban ban nhap, khong phai chu whisper doan ra.
+        Lan dau bat se tai model nhan dang ve (~145 MB), nhung lan sau chay ngay.
+      </div>
 
       <div class="hang" style="margin-top:18px">
         <button id="nut" onclick="tao()">Tao giong</button>
@@ -429,6 +434,16 @@ async function nap(){
     + '<option value="">Giong co san cua model (khong can clone)</option>';
 }
 nap();
+
+// nho lua chon .srt, toc do, cao do cho lan sau
+const NHO = ['srt','td','cd','nn1','nn2'];
+NHO.forEach(id => {
+  const o = $('#'+id), luu = localStorage.getItem('tv_'+id);
+  if (luu !== null) { if (o.type === 'checkbox') o.checked = luu === '1'; else o.value = luu; }
+  o.addEventListener('change', () =>
+    localStorage.setItem('tv_'+id, o.type === 'checkbox' ? (o.checked?'1':'0') : o.value));
+});
+['td','cd'].forEach(id => $('#'+id).dispatchEvent(new Event('input')));
 
 $('#tep').onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
@@ -477,9 +492,12 @@ async function tao(){
       $('#kq').innerHTML =
         `<audio controls src="/api/tai/${s.wav}"></audio>
          <div class="hang" style="margin-top:10px">
-           <a href="/api/tai/${s.wav}" download><button class="phu">Tai WAV</button></a>
-           ${s.srt?`<a href="/api/tai/${s.srt}" download><button class="phu">Tai SRT</button></a>`:''}
-         </div>`;
+           <a href="/api/tai/${s.wav}" download><button>Tai WAV</button></a>
+           ${s.srt?`<a href="/api/tai/${s.srt}" download><button>Tai SRT</button></a>`
+                 :`<span class="mo">(khong xuat phu de)</span>`}
+         </div>
+         <div class="meo" style="margin-top:8px">Luu san tai <code>XONG\\web\\</code>
+           &middot; ${s.wav}${s.srt?' + '+s.srt:''}</div>`;
       xong(`Xong — ${s.giay}s am thanh, lam mat ${s.da_chay}s`, false);
     }
     if(s.trang_thai === 'hong'){ clearInterval(dem); xong('Hong: '+s.thong_bao, true); }

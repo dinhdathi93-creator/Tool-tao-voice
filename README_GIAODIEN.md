@@ -16,7 +16,7 @@ lên mạng. Không tài khoản, không hạn mức, không tốn tiền.
 | **Cao độ giọng** | Thanh trượt −4 → +4 nửa cung — **độ dài không đổi**, kéo xuống là giọng trầm hơn |
 | Ngắt nghỉ | `<break time="1s"/>` đặt ngay trong câu · dấu chấm = nghỉ ngắn · dòng trống = nghỉ dài · `---` = nghỉ rất dài |
 | Chỉnh độ dài nghỉ | 2 ô số ngay trên giao diện |
-| Xuất | Nghe thử tại chỗ, tải **WAV**, tuỳ chọn kèm **SRT** |
+| Xuất | Nghe thử tại chỗ, tải **WAV** và **SRT** (bật sẵn) — lưu luôn ở `XONG\web\` |
 | Tiến độ | Thanh chạy + đang đọc câu mấy trên mấy |
 
 Bản thu lưu ở `XONG\web\`, đặt tên theo ngày giờ.
@@ -85,3 +85,19 @@ Nhận `1s`, `2.5s`, `500ms`, và `strength="weak|medium|strong|x-strong"`. Th�
 
 Đặt thẻ **giữa câu** cũng được — tool cắt câu ngay tại đó rồi chèn khoảng lặng đúng bằng thời
 gian bạn ghi.
+
+## Phụ đề SRT
+
+Ô **Xuất kèm phụ đề .srt** bật sẵn. Xong là có hai nút: **Tải WAV** và **Tải SRT**, và cả hai
+file đã nằm sẵn trong `XONG\web\` cùng tên, chỉ khác đuôi.
+
+Chữ trong SRT lấy **từ chính kịch bản bạn nhập**, không phải chữ whisper đoán ra — whisper chỉ
+đóng góp mốc thời gian. Nên phụ đề không bao giờ sai chính tả hay nghe nhầm từ.
+
+Thẻ `<break>` cũng vào đúng mốc: `<break time="1s"/>` giữa hai câu thì trong SRT hai phụ đề đó
+cách nhau đúng 1 giây.
+
+Lần đầu bật sẽ tải model nhận dạng về (~145 MB với `base`). Muốn nhanh hơn nữa thì sửa
+`"whisper_model": "tiny"` trong `channels.json`.
+
+Giao diện **nhớ lựa chọn** của bạn (SRT, tốc độ, cao độ, độ dài nghỉ) cho lần mở sau.
