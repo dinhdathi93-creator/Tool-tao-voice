@@ -252,6 +252,64 @@ def luu_hf_token(token: str) -> int:
     return 0
 
 
+def kiem_tra_kenh() -> int:
+    """Soi tung kenh trong channels.json: giong co ton tai khong, dang dat thong so gi."""
+    cau_hinh = doc_cau_hinh()
+    mac_dinh = cau_hinh.get("mac_dinh") or {}
+    cac_kenh = cau_hinh.get("kenh") or {}
+
+    duoi = (".wav", ".safetensors", ".mp3", ".flac", ".ogg", ".m4a")
+    co_san = []
+    if THU_MUC_GIONG.is_dir():
+        co_san = [p.name for p in sorted(THU_MUC_GIONG.iterdir()) if p.suffix.lower() in duoi]
+
+    log.info("=" * 72)
+    log.info("KIEM TRA CAC KENH TRONG channels.json")
+    log.info("=" * 72)
+
+    da_dung: set[str] = set()
+    so_hong = 0
+    for ten in sorted(cac_kenh):
+        cfg = lay_cau_hinh_kenh(f"{ten}_x.txt", cau_hinh, im_lang=True)
+        khai = (cac_kenh[ten] or {}).get("voice") or ""
+        gop = {**mac_dinh, **(cac_kenh[ten] or {})}
+        thuc = tim_file_giong(str(ten).upper(), khai or None, im_lang=True)
+
+        log.info("")
+        log.info("%s", str(ten).upper())
+        log.info("  ngon ngu   : %s", cfg.model)
+        if thuc:
+            da_dung.add(thuc.name)
+            log.info("  giong      : %s  [OK]", thuc.name)
+        else:
+            so_hong += 1
+            log.error("  giong      : %s  [KHONG CO FILE NAY]", khai or "(chua khai)")
+        log.info("  xu ly am   : %s", gop.get("hau_ky", "chuan"))
+        log.info("  toc do     : %.2fx | cao do %+.1f nua cung",
+                 float(gop.get("toc_do", 1.0)), float(gop.get("cao_do", 0.0)))
+        log.info("  nghi       : ngan %.2fs | dai %.2fs | doan %.2fs",
+                 float(gop.get("nghi_ngan", 0.3)), float(gop.get("nghi_dai", 0.85)),
+                 float(gop.get("nghi_doan_dai", 1.6)))
+
+    thua = [t for t in co_san if t not in da_dung and not t.endswith(".txt")]
+    if thua:
+        log.info("")
+        log.info("File giong trong voices\\ chua kenh nao dung:")
+        for t in thua:
+            log.info("  - %s", t)
+
+    log.info("")
+    log.info("=" * 72)
+    if so_hong:
+        log.error("%d kenh KHONG tim ra file giong -> se doc bang giong san cua model.", so_hong)
+        log.error("Sua \"voice\" trong channels.json cho khop mot trong cac file o tren,")
+        log.error("hoac mo GIAO_DIEN.bat, chon giong roi bam 'Luu cai dat nay cho kenh'.")
+    else:
+        log.info("Tat ca %d kenh deu co giong rieng. San sang chay hang loat.", len(cac_kenh))
+    log.info("=" * 72)
+    return 1 if so_hong else 0
+
+
 def chan_doan() -> int:
     """In ra moi thu can biet khi 'da nap token roi ma van bao khong clone duoc'."""
     import socket
@@ -444,7 +502,7 @@ def lay_tien_to(ten_file: str) -> str:
     return (khop.group(1) if khop else goc).upper()
 
 
-def tim_file_giong(tien_to: str, ten_khai_bao: str | None) -> Path | None:
+def tim_file_giong(tien_to: str, ten_khai_bao: str | None, im_lang: bool = False) -> Path | None:
     """Tim file giong mau: uu tien khai bao trong channels.json, sau do theo ten file."""
     duoi_am_thanh = (".wav", ".safetensors", ".mp3", ".flac", ".ogg", ".m4a")
 
@@ -453,7 +511,8 @@ def tim_file_giong(tien_to: str, ten_khai_bao: str | None) -> Path | None:
         for duong_dan in (ung_vien, THU_MUC_GIONG / ung_vien, GOC / ung_vien):
             if duong_dan.is_file():
                 return duong_dan.resolve()
-        log.warning("Khong thay file giong '%s' trong voices/ -> tim theo ten kenh.", ten_khai_bao)
+        if not im_lang:
+            log.warning("Khong thay file giong '%s' trong voices/ -> tim theo ten kenh.", ten_khai_bao)
 
     if THU_MUC_GIONG.is_dir():
         # voices/TERCO1.wav, voices/TERCO1_v2.wav, voices/terco1.safetensors ...
@@ -465,6 +524,8 @@ def tim_file_giong(tien_to: str, ten_khai_bao: str | None) -> Path | None:
 
     # Khong tim ra giong nao -> bao TO. Neu chi canh bao nhe, tool se am tham doc
     # bang giong san cua model va nguoi dung tuong da dung giong rieng cua minh.
+    if im_lang:
+        return None
     co_san = []
     if THU_MUC_GIONG.is_dir():
         co_san = [p.name for p in sorted(THU_MUC_GIONG.iterdir())
@@ -2141,6 +2202,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
                    help="Chay dung thu tu ten file (mac dinh gom theo model cho nhanh)")
     p.add_argument("--chi-tiet", action="store_true", help="In them log go roi")
     p.add_argument("--tu-kiem-tra", action="store_true", help="Chay thu duong ong, khong can model")
+    p.add_argument("--kiem-tra-kenh", action="store_true",
+                   help="Soi tung kenh: giong co ton tai khong, dang dat thong so gi")
     p.add_argument("--chan-doan", action="store_true",
                    help="Soi xem vi sao chua clone duoc giong: token, thu muc, server cu...")
 
@@ -2176,6 +2239,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if tuy_chon.hf_token:
         return luu_hf_token(tuy_chon.hf_token)
+
+    if tuy_chon.kiem_tra_kenh:
+        return kiem_tra_kenh()
 
     if tuy_chon.chan_doan:
         return chan_doan()

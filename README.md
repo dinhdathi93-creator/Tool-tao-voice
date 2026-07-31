@@ -168,6 +168,18 @@ Sau vạch ngang là nghỉ rất dài.
 Các độ dài nghỉ chỉnh được cho từng kênh trong `channels.json`
 (`nghi_ngan`, `nghi_dai`, `nghi_doan_dai`, `duoi_file` — đơn vị giây).
 
+### `channels.json` là nơi duy nhất quyết định khi chạy hàng loạt
+
+Sửa file bằng Notepad hay bấm nút **Luu cai dat nay cho kenh** trên giao diện web — **kết quả
+y hệt nhau**, vì cái nút chỉ ghi vào đúng file đó. Nút chỉ tiện hơn ở chỗ không sai cú pháp JSON.
+
+- `TAO_VOICE.bat` **đọc lại file mỗi lần chạy** → sửa xong chạy luôn, không cần khởi động lại gì.
+- Giao diện web **không tự lưu** — chỉnh trên web rồi đóng là mất, trừ khi bấm nút Lưu.
+- Giao diện web đang mở mà bạn sửa file bằng tay → bấm **F5** để nó nạp lại danh sách kênh.
+
+Bấm đúp **`KIEM_TRA_KENH.bat`** để soi một lượt tất cả các kênh: giọng có tồn tại không,
+đang đặt tốc độ / cao độ / mức xử lý / độ dài nghỉ bao nhiêu, và file giọng nào chưa kênh nào dùng.
+
 Tool **không cắt nhầm** ở `Mr.`, `Dr.`, `U.S.`, `3.5`, `$85,000` hay `Level 1. Junior.`
 
 ## 5. Tuỳ chọn dòng lệnh
@@ -189,6 +201,8 @@ python tao_voice.py [file/thư mục ...] [tuỳ chọn]
 --chuyen-kich-ban         chuyển .txt đã chạy sang XONG\KB_DA_CHAY\
 --theo-thu-tu-ten         chạy đúng thứ tự tên file (mặc định gom theo model cho nhanh)
 --chi-tiet                in thêm log gỡ rối
+--kiem-tra-kenh           soi từng kênh: giọng có tồn tại không, đang đặt thông số gì
+--chan-doan               soi vì sao chưa clone được giọng (token, thư mục, server cũ)
 --tu-kiem-tra             chạy thử đường ống, không cần model, không cần mạng
 ```
 
