@@ -1,0 +1,18 @@
+# Vi du dung the <break> - kenh TERCO2, tieng Bo Dao Nha (Brasil).
+# Ten file bat dau bang TERCO2_ nen tool tu chon model portuguese + voices/TERCO2.wav
+# Tha file nay vao TAO_VOICE.bat la ra WAV + SRT.
+
+<speak>
+Em nome do Pai, do Filho e do Espirito Santo. <break time="1s"/> Amem.
+
+<break time="2.5s"/>
+
+Hoje vamos rezar o terco juntos. <break time="800ms"/> Comecamos pelo primeiro misterio.
+
+Ave Maria, cheia de graca, o Senhor e convosco. <break time="1.5s"/>
+Bendita sois vos entre as mulheres.
+
+<break time="3s"/>
+
+Que a paz de Deus fique com voce hoje e sempre.
+</speak>

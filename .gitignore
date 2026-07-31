@@ -18,6 +18,7 @@ voices/*
 KB_CHO/*
 !KB_CHO/GODSAYS_vi_du.txt
 !KB_CHO/TERCO1_exemplo.txt
+!KB_CHO/TERCO2_exemplo_break.txt
 
 # token HuggingFace - khong day len git
 .hf_token
