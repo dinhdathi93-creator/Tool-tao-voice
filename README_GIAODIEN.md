@@ -14,7 +14,7 @@ lên mạng. Không tài khoản, không hạn mức, không tốn tiền.
 | Clone giọng | Bấm *Nạp giọng mới*, chọn file audio 10–30 giây — dùng được ngay |
 | **Tốc độ đọc** | Thanh trượt 0.70x–1.30x — **cao độ không đổi**, không bị méo giọng |
 | **Cao độ giọng** | Thanh trượt −4 → +4 nửa cung — **độ dài không đổi**, kéo xuống là giọng trầm hơn |
-| Ngắt nghỉ | Dấu chấm = nghỉ ngắn, dòng trống = nghỉ dài, `---` = nghỉ rất dài, `[nghi=2.5]` |
+| Ngắt nghỉ | `<break time="1s"/>` đặt ngay trong câu · dấu chấm = nghỉ ngắn · dòng trống = nghỉ dài · `---` = nghỉ rất dài |
 | Chỉnh độ dài nghỉ | 2 ô số ngay trên giao diện |
 | Xuất | Nghe thử tại chỗ, tải **WAV**, tuỳ chọn kèm **SRT** |
 | Tiến độ | Thanh chạy + đang đọc câu mấy trên mấy |
@@ -63,3 +63,25 @@ Chạy hàng loạt thì đặt trong `channels.json` cho từng kênh:
 - Đổi ngôn ngữ giữa chừng thì phải nạp model mới, lại chờ một lần nữa.
 - Muốn dừng: đóng cửa sổ đen (cửa sổ chạy `GIAO_DIEN.bat`).
 - Máy khác trong nhà **không** vào được — cố ý vậy cho an toàn, chỉ mở ở `localhost`.
+
+## Thẻ `<break>` — dùng chung cho cả dán tay lẫn chạy hàng loạt
+
+Kịch bản có sẵn thẻ `<break time="1s"/>` thì **dán thẳng vào ô Script** là chạy, hoặc lưu thành
+`.txt` rồi **thả vào `TAO_VOICE.bat`** để chạy hàng loạt. Cùng một bộ quy ước, không phải sửa gì
+giữa hai đường.
+
+```
+<speak>
+Em nome do Pai, do Filho e do Espirito Santo. <break time="1s"/> Amem.
+
+<break time="2.5s"/>
+
+Hoje vamos rezar o terco juntos. <break time="800ms"/> Comecamos agora.
+</speak>
+```
+
+Nhận `1s`, `2.5s`, `500ms`, và `strength="weak|medium|strong|x-strong"`. Thẻ SSML khác
+(`<speak>`, `<p>`, `<prosody>`…) tự bị bỏ nên không lọt vào lời đọc.
+
+Đặt thẻ **giữa câu** cũng được — tool cắt câu ngay tại đó rồi chèn khoảng lặng đúng bằng thời
+gian bạn ghi.

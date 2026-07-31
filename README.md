@@ -127,6 +127,11 @@ File nào đã có `.wav` trong `XONG\` thì lần chạy sau **bỏ qua**. Mu�
 
 | Viết trong file .txt | Kết quả |
 |---|---|
+| `<break time="1s"/>` | **nghỉ đúng 1 giây** — đặt giữa câu cũng được |
+| `<break time="2.5s"/>` | nghỉ đúng 2.5 giây |
+| `<break time="500ms"/>` | nghỉ 0.5 giây (mili giây) |
+| `<break strength="strong"/>` | 0.9s (`x-weak` 0.1 · `weak` 0.25 · `medium` 0.5 · `strong` 0.9 · `x-strong` 1.5) |
+| `<speak>`, `<p>`, `<prosody ...>` … | tự bỏ, **không bị đọc thành chữ** |
 | Kết câu bằng `.` `!` `?` `…` | **nghỉ ngắn** (mặc định 0.30s) |
 | Câu cuối đoạn + **một dòng trống** ở dưới | **nghỉ dài** (mặc định 0.85s) |
 | Dòng chỉ có `---` | **nghỉ rất dài** (mặc định 1.60s) |
@@ -135,6 +140,20 @@ File nào đã có `.wav` trong `XONG\` thì lần chạy sau **bỏ qua**. Mu�
 | Dòng dạng `[INTRO]`, `[B-ROLL: ...]` | chỉ dẫn sản xuất, **không đọc** |
 
 Ví dụ:
+
+Kịch bản dùng thẻ `<break>` — dán thẳng vào giao diện web, hoặc lưu `.txt` thả vào `TAO_VOICE.bat`:
+
+```
+<speak>
+Em nome do Pai, do Filho e do Espirito Santo. <break time="1s"/> Amem.
+
+<break time="2.5s"/>
+
+Hoje vamos rezar o terco juntos. <break time="800ms"/> Comecamos agora.
+</speak>
+```
+
+Cách viết cũ vẫn chạy song song:
 
 ```
 [HOOK]

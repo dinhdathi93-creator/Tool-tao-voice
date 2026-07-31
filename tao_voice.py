@@ -511,6 +511,53 @@ VIET_TAT = {
 }
 
 RE_NGHI = re.compile(r"\[\s*(?:nghi|nghỉ|pause)\s*[=:]?\s*([0-9]+(?:[.,][0-9]+)?)\s*s?\s*\]", re.I)
+
+# The ngat nghi kieu SSML:  <break time="1s"/>  <break time="500ms"/>  <break strength="strong"/>
+# Dat giua cau cung duoc, khong bat buoc phai dung mot dong rieng.
+RE_BREAK = re.compile(
+    r"""<\s*break\s*
+        (?:
+            time\s*=\s*["']?\s*([0-9]+(?:[.,][0-9]+)?)\s*(ms|s)?\s*["']?
+          | strength\s*=\s*["']?\s*(x-weak|weak|medium|strong|x-strong)\s*["']?
+        )?
+        [^>]*?/?\s*>""",
+    re.I | re.X,
+)
+
+# Cac the SSML khac (<speak>, <p>, <prosody ...>) - bo di cho khoi bi doc thanh chu
+RE_THE_SSML = re.compile(r"</?[a-zA-Z][a-zA-Z0-9:-]*(?:\s[^>]*?)?/?>")
+
+NGHI_THEO_MUC = {
+    "x-weak": 0.10,
+    "weak": 0.25,
+    "medium": 0.50,
+    "strong": 0.90,
+    "x-strong": 1.50,
+}
+
+
+def _giay_tu_break(khop: "re.Match") -> float:
+    """<break time="2.5s"/> -> 2.5 ; <break time="500ms"/> -> 0.5 ; <break/> -> 0.5"""
+    so, don_vi, muc = khop.group(1), khop.group(2), khop.group(3)
+    if so:
+        giay = float(so.replace(",", "."))
+        if (don_vi or "s").lower() == "ms":
+            giay /= 1000.0
+        return max(0.0, min(giay, 30.0))
+    if muc:
+        return NGHI_THEO_MUC[muc.lower()]
+    return 0.5
+
+
+def _tach_theo_break(van_ban: str) -> list[tuple[str, float | None]]:
+    """Cat van ban tai cac the <break>, tra ve [(doan chu, nghi sau doan do), ...]."""
+    ra: list[tuple[str, float | None]] = []
+    vi_tri = 0
+    for khop in RE_BREAK.finditer(van_ban):
+        ra.append((van_ban[vi_tri : khop.start()], _giay_tu_break(khop)))
+        vi_tri = khop.end()
+    ra.append((van_ban[vi_tri:], None))
+    return ra
 RE_CHI_DAN = re.compile(r"^\[[^\]]{0,60}\]$")
 RE_KET_CAU = re.compile(r"[.!?…]+[\"'”’)\]]*")
 
@@ -633,15 +680,30 @@ def tach_kich_ban(raw: str, cfg: CauHinhKenh) -> list[DoanNoi]:
 
     doan: list[DoanNoi] = []
     for cac_dong, nghi_cuoi_khoi in khoi:
-        van_ban = " ".join(cac_dong)
-        van_ban = RE_NGHI.sub(" ", van_ban)  # marker con sot lai giua dong -> bo
-        van_ban = re.sub(r"\s+", " ", van_ban).strip()
-        if not van_ban:
-            continue
-        cau = tach_cau(van_ban)
-        for i, mot_cau in enumerate(cau):
-            cuoi_khoi = i == len(cau) - 1
-            doan.append(DoanNoi(mot_cau, nghi_cuoi_khoi if cuoi_khoi else cfg.nghi_ngan))
+        van_ban = RE_NGHI.sub(" ", " ".join(cac_dong))  # marker [nghi=] con sot giua dong
+
+        manh = _tach_theo_break(van_ban)
+        for j, (khuc, nghi_ep_khuc) in enumerate(manh):
+            khuc = re.sub(r"\s+", " ", RE_THE_SSML.sub(" ", khuc)).strip()
+
+            if not khuc:
+                # <break> dung mot minh -> ap do dai nghi len cau ngay truoc no
+                if nghi_ep_khuc is not None and doan:
+                    doan[-1].nghi_sau = nghi_ep_khuc
+                continue
+
+            cuoi_manh = j == len(manh) - 1
+            cau = tach_cau(khuc)
+            for i, mot_cau in enumerate(cau):
+                if i < len(cau) - 1:
+                    nghi = cfg.nghi_ngan
+                elif nghi_ep_khuc is not None:
+                    nghi = nghi_ep_khuc          # the <break> quyet dinh
+                elif cuoi_manh:
+                    nghi = nghi_cuoi_khoi        # het khoi -> nghi dai / rat dai
+                else:
+                    nghi = cfg.nghi_ngan
+                doan.append(DoanNoi(mot_cau, nghi))
 
     if doan:
         doan[-1].nghi_sau = cfg.duoi_file

@@ -360,14 +360,18 @@ ul.nx li{padding:3px 0}
     <textarea id="vb" placeholder="Go hoac dan kich ban vao day...
 
 Ket cau bang dau cham thi nghi ngan.
+Dat &lt;break time=&quot;1s&quot;/&gt; o dau muon nghi dung 1 giay.
 
 De mot dong trong thi nghi dai."></textarea>
     <div class="meo">
+      <b style="color:#c8f24a">&lt;break time="1s"/&gt;</b> = nghi dung 1 giay &middot;
+      <code>&lt;break time="2.5s"/&gt;</code> &middot; <code>&lt;break time="500ms"/&gt;</code>
+      — dat giua cau cung duoc<br>
       Dau <code>.</code> <code>!</code> <code>?</code> = nghi ngan &middot;
       de <b>mot dong trong</b> = nghi dai &middot;
       dong chi co <code>---</code> = nghi rat dai &middot;
-      <code>[nghi=2.5]</code> = nghi 2,5 giay &middot;
-      dong bat dau bang <code>#</code> = ghi chu, khong doc
+      dong bat dau bang <code>#</code> = ghi chu, khong doc<br>
+      Cac the SSML khac (<code>&lt;speak&gt;</code>, <code>&lt;p&gt;</code>...) tu duoc bo, khong bi doc thanh chu
     </div>
   </div>
 

@@ -8,7 +8,8 @@
     "temperature: de null cho model tu chon; 0.3-0.5 = deu deu, 0.7-0.9 = nhieu cam xuc hon.",
     "whisper_lang: de null cho tu suy ra tu model (english -> en, portuguese -> pt).",
     "quantize: true = nen model xuong int8, nhanh hon ~27% va do RAM ~48% tren CPU Intel/AMD. Nen bat neu may doi cu hoac RAM 8GB. Chat luong giong khong doi.",
-    "whisper_model: tiny/base/small/medium. Chu trong SRT lay tu kich ban chu khong tu whisper, nen 'base' da du chinh xac va nhanh gap doi 'small'."
+    "whisper_model: tiny/base/small/medium. Chu trong SRT lay tu kich ban chu khong tu whisper, nen 'base' da du chinh xac va nhanh gap doi 'small'.",
+    "The <break time=\"1s\"/> trong kich ban se duoc doi thanh khoang lang dung 1 giay."
   ],
   "mac_dinh": {
     "model": "english",
@@ -38,6 +39,18 @@
     "RUNGWORK": {
       "model": "english",
       "voice": "RUNGWORK.wav"
+    },
+    "TERCO2": {
+      "model": "portuguese",
+      "voice": "TERCO2.wav",
+      "nghi_ngan": 0.35,
+      "nghi_dai": 1.0
+    },
+    "TERCO3": {
+      "model": "portuguese",
+      "voice": "TERCO3.wav",
+      "nghi_ngan": 0.35,
+      "nghi_dai": 1.0
     }
   }
 }
