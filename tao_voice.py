@@ -271,10 +271,13 @@ def chan_doan() -> int:
             ai = api.whoami(token=token)
             log.info("   [OK] Token con song, tai khoan: %s", ai.get("name") or "?")
             try:
-                api.model_info(REPO_CLONE, token=token)
-                log.info("   [OK] Da co quyen vao %s", REPO_CLONE)
+                tt = api.model_info(REPO_CLONE, token=token)
+                khoa = getattr(tt, "gated", None)
+                log.info("   [OK] Doc duoc thong tin repo %s (gated=%s)", REPO_CLONE, khoa)
+                log.info("   Luu y: doc duoc thong tin KHONG co nghia la da duoc duyet tai file.")
+                log.info("   Muc 6 ben duoi moi la phep thu that su.")
             except Exception as loi:
-                log.error("   [HONG] Chua co quyen vao %s: %s", REPO_CLONE, loi)
+                log.error("   [HONG] Khong doc duoc %s: %s", REPO_CLONE, loi)
                 log.error("   -> Vao https://huggingface.co/%s bam dong y dieu khoan.", REPO_CLONE)
         except Exception as loi:
             log.error("   [HONG] Token khong dung: %s", loi)
@@ -309,7 +312,48 @@ def chan_doan() -> int:
     log.info("   %s", ", ".join(co) if co else "(chua co giong nao)")
 
     log.info("")
-    log.info("6. THU NAP MODEL THAT")
+    log.info("6. THU TAI THANG TRONG SO BAN CLONE GIONG")
+    log.info("   (pocket-tts nuot mat loi nay nen phai goi tay moi thay)")
+    try:
+        import huggingface_hub
+
+        log.info("   huggingface_hub %s", huggingface_hub.__version__)
+        try:
+            thay = huggingface_hub.get_token()
+            log.info("   thu vien doc duoc token: %s", "co" if thay else "KHONG")
+        except Exception:
+            pass
+
+        from pocket_tts.utils.config import CONFIGS_DIR
+        from pocket_tts.utils.utils import download_if_necessary
+
+        yaml_text = (Path(CONFIGS_DIR) / "english.yaml").read_text(encoding="utf-8")
+        khop = re.search(r"^weights_path:\s*(\S+)", yaml_text, re.M)
+        if not khop:
+            log.warning("   Khong doc duoc weights_path trong english.yaml")
+        else:
+            duong = khop.group(1)
+            log.info("   Dang tai: %s", duong)
+            try:
+                ra = download_if_necessary(duong)
+                log.info("   [OK] Tai duoc! %s", ra)
+            except Exception as loi:
+                log.error("   [HONG] %s: %s", type(loi).__name__, loi)
+                chu = str(loi) + type(loi).__name__
+                if "Gated" in chu or "403" in chu or "awaiting" in chu.lower():
+                    log.error("   -> Quyen chua duoc duyet, hoac token la loai 'Fine-grained'")
+                    log.error("      thieu quyen doc repo co khoa. Hay tao token loai READ")
+                    log.error("      tai https://huggingface.co/settings/tokens roi nap lai.")
+                elif "401" in chu or "Unauthorized" in chu:
+                    log.error("   -> Thu vien khong nhan duoc token luc tai.")
+                elif "404" in chu or "EntryNotFound" in chu or "RepositoryNotFound" in chu:
+                    log.error("   -> Duong dan/phien ban file nay khong con ton tai tren HuggingFace.")
+                    log.error("      Day la loi cua ban pocket-tts, khong phai loi token cua ban.")
+    except Exception as loi:
+        log.error("   [HONG] Khong chay duoc buoc nay: %s", loi)
+
+    log.info("")
+    log.info("7. THU NAP MODEL THAT")
     try:
         engine = MayDocGiong(1)
         model = engine.model("english", None)
