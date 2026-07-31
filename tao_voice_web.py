@@ -497,7 +497,17 @@ def main() -> int:
     log.info("Dong cua so nay la tat. Ctrl+C cung duoc.")
     log.info("=" * 68)
 
-    uvicorn.run(tao_app(), host="127.0.0.1", port=CONG, log_level="warning")
+    try:
+        uvicorn.run(tao_app(), host="127.0.0.1", port=CONG, log_level="warning")
+    except OSError as loi:
+        log.error("=" * 68)
+        log.error("KHONG MO DUOC GIAO DIEN: cong %d dang bi chiem (%s)", CONG, loi)
+        log.error("Rat co the mot cua so GIAO_DIEN.bat cu van dang chay.")
+        log.error("Dong het cac cua so den do lai roi mo lai file nay.")
+        log.error("QUAN TRONG: server cu giu model da nap tu truoc trong bo nho,")
+        log.error("nen nap token xong ma khong dong no thi van bao khong clone duoc giong.")
+        log.error("=" * 68)
+        return 2
     return 0
 
 

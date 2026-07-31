@@ -243,6 +243,91 @@ def luu_hf_token(token: str) -> int:
     return 0
 
 
+def chan_doan() -> int:
+    """In ra moi thu can biet khi 'da nap token roi ma van bao khong clone duoc'."""
+    import socket
+
+    log.info("=" * 68)
+    log.info("CHAN DOAN")
+    log.info("=" * 68)
+
+    log.info("")
+    log.info("1. DANG CHAY TU THU MUC NAO")
+    log.info("   %s", GOC)
+    log.info("   -> Neu ban co nhieu ban chep cua tool, nap token o ban NAY moi an.")
+
+    log.info("")
+    log.info("2. TOKEN HUGGINGFACE")
+    token = nap_hf_token()
+    if not token:
+        log.error("   [HONG] Khong thay file %s trong thu muc tren.", FILE_HF_TOKEN.name)
+        log.error("   -> Bam dup NAP_TOKEN.bat NAM CUNG THU MUC NAY.")
+    else:
+        log.info("   [OK] Co token (%s...%s), doc tu %s", token[:6], token[-4:], FILE_HF_TOKEN.name)
+        try:
+            from huggingface_hub import HfApi
+
+            api = HfApi()
+            ai = api.whoami(token=token)
+            log.info("   [OK] Token con song, tai khoan: %s", ai.get("name") or "?")
+            try:
+                api.model_info(REPO_CLONE, token=token)
+                log.info("   [OK] Da co quyen vao %s", REPO_CLONE)
+            except Exception as loi:
+                log.error("   [HONG] Chua co quyen vao %s: %s", REPO_CLONE, loi)
+                log.error("   -> Vao https://huggingface.co/%s bam dong y dieu khoan.", REPO_CLONE)
+        except Exception as loi:
+            log.error("   [HONG] Token khong dung: %s", loi)
+
+    log.info("")
+    log.info("3. CHO CHUA MODEL")
+    hf_home = os.environ.get("HF_HOME") or str(THU_MUC_CACHE / "huggingface")
+    log.info("   %s", hf_home)
+    kho = Path(hf_home) / "hub"
+    if kho.is_dir():
+        for p in sorted(kho.glob("models--*")):
+            log.info("   - %s", p.name)
+    else:
+        log.info("   (chua tai model nao ve)")
+
+    log.info("")
+    log.info("4. CO SERVER CU DANG CHAY KHONG")
+    ket = socket.socket()
+    ket.settimeout(0.6)
+    dang_chay = ket.connect_ex(("127.0.0.1", 8777)) == 0
+    ket.close()
+    if dang_chay:
+        log.warning("   [!] Cong 8777 dang co ai do chiem - rat co the la GIAO_DIEN.bat cu.")
+        log.warning("   -> Model da nap vao bo nho tu truoc thi KHONG tu doi.")
+        log.warning("   -> DONG HET cac cua so den cua GIAO_DIEN.bat roi mo lai.")
+    else:
+        log.info("   [OK] Khong co server nao dang chay.")
+
+    log.info("")
+    log.info("5. GIONG MAU DANG CO")
+    co = [p.name for p in THU_MUC_GIONG.glob("*")] if THU_MUC_GIONG.is_dir() else []
+    log.info("   %s", ", ".join(co) if co else "(chua co giong nao)")
+
+    log.info("")
+    log.info("6. THU NAP MODEL THAT")
+    try:
+        engine = MayDocGiong(1)
+        model = engine.model("english", None)
+        if getattr(model, "has_voice_cloning", True):
+            log.info("   [OK] Model nap duoc VA clone duoc giong rieng. Moi thu san sang.")
+        else:
+            log.error("   [HONG] Model nap duoc nhung KHONG clone duoc giong.")
+            log.error("   -> Xem lai muc 2 va muc 4 o tren.")
+            return 1
+    except Exception as loi:
+        log.error("   [HONG] Khong nap duoc model: %s", loi)
+        return 1
+
+    log.info("")
+    log.info("=" * 68)
+    return 0
+
+
 def ep_utf8() -> None:
     """Console Windows hay la cp1252/cp437 -> ep UTF-8 cho khoi loi tieng Viet."""
     for luong in (sys.stdout, sys.stderr):
@@ -645,6 +730,17 @@ class MayDocGiong:
         model.to("cpu")
         self._model[ten_model] = model
         self.sample_rate = int(model.sample_rate)
+
+        # pocket-tts am tham lui ve ban khong clone duoc giong khi thieu quyen
+        # tren HuggingFace -> noi ngay o day thay vi de den luc bam nut moi biet.
+        if not getattr(model, "has_voice_cloning", True):
+            log.error("=" * 68)
+            log.error("BAN MODEL NAY KHONG CLONE DUOC GIONG RIENG.")
+            log.error("Thieu quyen tai trong so tu HuggingFace. Cach sua:")
+            log.error("  1. Bam dup NAP_TOKEN.bat (trong DUNG thu muc dang chay: %s)", GOC)
+            log.error("  2. Neu da nap roi ma van bao dong nay: chay CHAN_DOAN.bat")
+            log.error("Tam thoi van doc duoc bang giong co san cua model.")
+            log.error("=" * 68)
         log.info("Nap xong '%s' sau %.1f giay (CPU, %d Hz).", ten_model, time.time() - t0, self.sample_rate)
         return model
 
@@ -1538,6 +1634,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
                    help="Chay dung thu tu ten file (mac dinh gom theo model cho nhanh)")
     p.add_argument("--chi-tiet", action="store_true", help="In them log go roi")
     p.add_argument("--tu-kiem-tra", action="store_true", help="Chay thu duong ong, khong can model")
+    p.add_argument("--chan-doan", action="store_true",
+                   help="Soi xem vi sao chua clone duoc giong: token, thu muc, server cu...")
 
     nhom = p.add_argument_group("nap giong mau de clone (THEM_GIONG.bat)")
     nhom.add_argument("--them-giong", metavar="FILE",
@@ -1571,6 +1669,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if tuy_chon.hf_token:
         return luu_hf_token(tuy_chon.hf_token)
+
+    if tuy_chon.chan_doan:
+        return chan_doan()
 
     if tuy_chon.tu_kiem_tra:
         return tu_kiem_tra()
