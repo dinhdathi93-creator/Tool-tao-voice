@@ -184,10 +184,23 @@ def nap_hf_token() -> str | None:
 
 def luu_hf_token(token: str) -> int:
     """Luu token roi kiem tra xem da mo khoa duoc model clone giong chua."""
+    if token == "__hoi__":
+        # Hoi rieng: token khong loi ra lich su lenh, khong loi len anh chup man hinh
+        print()
+        print("Dan token HuggingFace vao roi Enter (chuot phai de dan):")
+        print("Lay token tai https://huggingface.co/settings/tokens (loai Read)")
+        try:
+            token = input("> ").strip()
+        except EOFError:
+            token = ""
+
     token = token.strip().strip('"').strip("'")
     if not token:
         log.error("Chuoi token rong.")
         return 2
+
+    if not token.startswith("hf_"):
+        log.warning("Token HuggingFace thuong bat dau bang 'hf_'. Van thu kiem tra...")
 
     log.info("=" * 68)
     log.info("KIEM TRA TOKEN HUGGINGFACE")
@@ -1536,8 +1549,9 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     nhom.add_argument("--ghi-de", action="store_true", help="Ghi de giong cu, khong luu ban cu")
     nhom.add_argument("--khong-thu", action="store_true", help="Nap xong khong doc thu")
     nhom.add_argument("--cau-thu", metavar="CAU", help="Cau dung de doc thu")
-    nhom.add_argument("--hf-token", metavar="TOKEN",
-                      help="Luu token HuggingFace de mo khoa model clone giong")
+    nhom.add_argument("--hf-token", metavar="TOKEN", nargs="?", const="__hoi__",
+                      help="Luu token HuggingFace de mo khoa model clone giong. "
+                           "Go khong kem token thi tool hoi rieng, khong luu vao lich su lenh")
     return p.parse_args(list(argv))
 
 

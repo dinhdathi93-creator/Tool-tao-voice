@@ -40,14 +40,15 @@ Làm 4 bước, khoảng 3 phút:
 1. Tạo tài khoản miễn phí: https://huggingface.co/join
 2. Vào https://huggingface.co/kyutai/pocket-tts → đăng nhập → bấm nút đồng ý điều khoản
 3. Tạo token: https://huggingface.co/settings/tokens → **New token** → loại **Read** → copy chuỗi `hf_...`
-4. Mở `cmd` trong thư mục tool rồi chạy:
-
-```
-.venv\Scripts\python tao_voice.py --hf-token hf_dan_token_cua_ban_vao_day
-```
+4. Bấm đúp **`NAP_TOKEN.bat`** → nó hỏi token → chuột phải để dán → Enter.
 
 Nó kiểm tra token, kiểm tra bạn đã được cấp quyền vào repo chưa, rồi lưu vào `.hf_token`.
 Từ đó mọi lần chạy đều tự dùng, không phải nhập lại.
+
+> **Đừng gõ token thẳng vào dòng lệnh.** Nó sẽ nằm lại trong lịch sử lệnh của Windows và
+> hiện nguyên trên màn hình — chỉ cần một ảnh chụp là lộ. `NAP_TOKEN.bat` hỏi riêng nên
+> tránh được cả hai. Lỡ lộ rồi thì vào https://huggingface.co/settings/tokens xoá token
+> đó đi và tạo cái mới.
 
 > Chưa mở khoá vẫn dùng được ngay — chỉ là dùng **giọng có sẵn** của model
 > (`alba`, `rafael`, `lola`…) thay vì giọng riêng của bạn.
