@@ -19,6 +19,9 @@ KB_CHO/*
 !KB_CHO/GODSAYS_vi_du.txt
 !KB_CHO/TERCO1_exemplo.txt
 
+# token HuggingFace - khong day len git
+.hf_token
+
 # --- tao_anh ---
 # config.json chua API KEY -> tuyet doi khong day len git
 config.json

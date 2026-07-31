@@ -397,9 +397,10 @@ async function nap(){
   const d = await (await fetch('/api/giong')).json();
   $('#nn').innerHTML = d.ngon_ngu.map(n=>`<option value="${n.ma}">${n.ten}</option>`).join('');
   const g = d.giong;
-  $('#giong').innerHTML = g.length
-    ? g.map(v=>`<option value="${v.ten}">${v.nhan}${v.giay?' — '+v.giay+'s':''}</option>`).join('')
-    : '<option value="">(chua co giong mau — dung giong san cua model)</option>';
+  // Luon co lua chon "giong san" -> thu duoc ngay ca khi chua mo khoa clone giong
+  $('#giong').innerHTML =
+    g.map(v=>`<option value="${v.ten}">${v.nhan}${v.giay?' — '+v.giay+'s':''}</option>`).join('')
+    + '<option value="">Giong co san cua model (khong can clone)</option>';
 }
 nap();
 
@@ -476,6 +477,8 @@ def main() -> int:
     import os
 
     os.environ.setdefault("HF_HOME", str(tv.THU_MUC_CACHE / "huggingface"))
+    if not tv.nap_hf_token():
+        log.warning("Chua co token HuggingFace -> chua clone duoc giong rieng.")
 
     try:
         import uvicorn

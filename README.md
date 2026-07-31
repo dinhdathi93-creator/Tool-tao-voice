@@ -27,7 +27,32 @@ HuggingFace) nên sẽ lâu. Những lần sau chạy ngay.
 
 ## 2. Chuẩn bị
 
-**a. Nạp giọng mẫu để clone** → kéo thả file audio vào **`THEM_GIONG.bat`**.
+**a. Mở khoá model clone giọng (bắt buộc, làm 1 lần)**
+
+Model clone giọng của Kyutai là **repo có khoá** trên HuggingFace — phải có tài khoản và
+bấm đồng ý điều khoản mới tải được. Không có bước này, pocket-tts tự lùi về bản **không
+clone được**, và khi bạn chọn file giọng riêng nó sẽ báo:
+
+> *We couldn't download the weights for the model with voice cloning...*
+
+Làm 4 bước, khoảng 3 phút:
+
+1. Tạo tài khoản miễn phí: https://huggingface.co/join
+2. Vào https://huggingface.co/kyutai/pocket-tts → đăng nhập → bấm nút đồng ý điều khoản
+3. Tạo token: https://huggingface.co/settings/tokens → **New token** → loại **Read** → copy chuỗi `hf_...`
+4. Mở `cmd` trong thư mục tool rồi chạy:
+
+```
+.venv\Scripts\python tao_voice.py --hf-token hf_dan_token_cua_ban_vao_day
+```
+
+Nó kiểm tra token, kiểm tra bạn đã được cấp quyền vào repo chưa, rồi lưu vào `.hf_token`.
+Từ đó mọi lần chạy đều tự dùng, không phải nhập lại.
+
+> Chưa mở khoá vẫn dùng được ngay — chỉ là dùng **giọng có sẵn** của model
+> (`alba`, `rafael`, `lola`…) thay vì giọng riêng của bạn.
+
+**b. Nạp giọng mẫu để clone** → kéo thả file audio vào **`THEM_GIONG.bat`**.
 
 Nó hỏi tên kênh + ngôn ngữ rồi tự làm hết: kiểm tra chất lượng mẫu, chuyển sang WAV
 16-bit mono, cắt khoảng lặng thừa, giới hạn 30 giây (cắt đúng chỗ im lặng cho khỏi
@@ -50,7 +75,7 @@ python tao_voice.py --them-giong "D:\thu\cha_A.mp3" --kenh TERCO1 --model portug
 > Không có gì được tải lên mạng. pocket-tts clone giọng ngay trên máy bạn;
 > mạng chỉ dùng đúng một lần để tải trọng số model về.
 
-**b. Khai báo kênh** — `THEM_GIONG.bat` đã ghi sẵn, chỉ sửa `channels.json` khi cần
+**c. Khai báo kênh** — `THEM_GIONG.bat` đã ghi sẵn, chỉ sửa `channels.json` khi cần
 đổi độ dài nghỉ hay temperature:
 
 ```json
@@ -63,7 +88,7 @@ python tao_voice.py --them-giong "D:\thu\cha_A.mp3" --kenh TERCO1 --model portug
 Muốn bỏ file giọng vào tay thì cũng được: đặt tên `voices\<TÊN_KÊNH>.wav` là tool tự
 nhận, nhưng nhớ xuất đúng **WAV 16-bit PCM mono**.
 
-**c. Kịch bản** → bỏ vào `KB_CHO\`, tên file **bắt đầu bằng tiền tố kênh**:
+**d. Kịch bản** → bỏ vào `KB_CHO\`, tên file **bắt đầu bằng tiền tố kênh**:
 
 ```
 KB_CHO\TERCO1_video_01.txt      -> model portuguese + voices\TERCO1.wav

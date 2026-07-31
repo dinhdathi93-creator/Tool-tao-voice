@@ -53,6 +53,9 @@ THU_MUC_RA = GOC / "XONG"
 THU_MUC_LOG = GOC / "logs"
 THU_MUC_CACHE = GOC / ".cache_voice"
 FILE_CAU_HINH = GOC / "channels.json"
+FILE_HF_TOKEN = GOC / ".hf_token"
+
+REPO_CLONE = "kyutai/pocket-tts"
 
 # pocket-tts luon xuat 24 kHz mono; van doc lai tu model khi co the.
 SAMPLE_RATE_MAC_DINH = 24000
@@ -161,6 +164,70 @@ def cai_dat_log(muc: int = logging.INFO) -> Path:
         con.addHandler(ra_file)
 
     return duong_dan
+
+
+def nap_hf_token() -> str | None:
+    """Doc token HuggingFace tu file .hf_token va dat vao moi truong.
+
+    Model clone giong cua Kyutai la repo co khoa: phai dang nhap va bam dong y
+    dieu khoan thi moi tai duoc trong so. Khong co token thi pocket-tts tu lui
+    ve ban KHONG clone duoc giong, chi dung duoc giong co san.
+    """
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    if not token and FILE_HF_TOKEN.exists():
+        token = FILE_HF_TOKEN.read_text(encoding="utf-8").strip()
+    if token:
+        os.environ["HF_TOKEN"] = token
+        os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+    return token or None
+
+
+def luu_hf_token(token: str) -> int:
+    """Luu token roi kiem tra xem da mo khoa duoc model clone giong chua."""
+    token = token.strip().strip('"').strip("'")
+    if not token:
+        log.error("Chuoi token rong.")
+        return 2
+
+    log.info("=" * 68)
+    log.info("KIEM TRA TOKEN HUGGINGFACE")
+    log.info("=" * 68)
+
+    try:
+        from huggingface_hub import HfApi
+    except ImportError:
+        log.error("Thieu huggingface_hub. Chay CAI_DAT.bat truoc.")
+        return 2
+
+    api = HfApi()
+    try:
+        ai = api.whoami(token=token)
+        log.info("  [OK] Token hop le, tai khoan: %s", ai.get("name") or ai.get("fullname") or "?")
+    except Exception as loi:
+        log.error("  [HONG] Token khong dung: %s", loi)
+        log.error("  Lay token moi tai https://huggingface.co/settings/tokens (loai Read).")
+        return 1
+
+    try:
+        api.model_info(REPO_CLONE, token=token)
+        log.info("  [OK] Da mo khoa duoc model clone giong (%s).", REPO_CLONE)
+    except Exception as loi:
+        ten_loi = type(loi).__name__
+        if "Gated" in ten_loi or "gated" in str(loi) or "403" in str(loi):
+            log.error("  [HONG] Tai khoan nay CHUA duoc cap quyen vao %s.", REPO_CLONE)
+            log.error("  Vao https://huggingface.co/%s", REPO_CLONE)
+            log.error("  dang nhap roi bam nut dong y dieu khoan, sau do chay lai lenh nay.")
+            return 1
+        log.error("  [HONG] Khong kiem tra duoc: %s", loi)
+        return 1
+
+    FILE_HF_TOKEN.write_text(token + "\n", encoding="utf-8")
+    log.info("")
+    log.info("Da luu token vao %s", FILE_HF_TOKEN.name)
+    log.info("Chay lai TAO_VOICE.bat hoac GIAO_DIEN.bat la clone duoc giong rieng.")
+    log.info("(Lan chay toi se tai ban co clone giong ve, khong can xoa cache cu.)")
+    log.info("=" * 68)
+    return 0
 
 
 def ep_utf8() -> None:
@@ -1469,6 +1536,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     nhom.add_argument("--ghi-de", action="store_true", help="Ghi de giong cu, khong luu ban cu")
     nhom.add_argument("--khong-thu", action="store_true", help="Nap xong khong doc thu")
     nhom.add_argument("--cau-thu", metavar="CAU", help="Cau dung de doc thu")
+    nhom.add_argument("--hf-token", metavar="TOKEN",
+                      help="Luu token HuggingFace de mo khoa model clone giong")
     return p.parse_args(list(argv))
 
 
@@ -1486,8 +1555,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     log.info("Log: %s", file_log)
     log.info("Model tai ve: %s", os.environ["HF_HOME"])
 
+    if tuy_chon.hf_token:
+        return luu_hf_token(tuy_chon.hf_token)
+
     if tuy_chon.tu_kiem_tra:
         return tu_kiem_tra()
+
+    if nap_hf_token():
+        log.info("HuggingFace: da co token -> dung duoc model clone giong.")
+    else:
+        log.warning(
+            "HuggingFace: chua co token -> CHUA clone duoc giong rieng, "
+            "chi dung duoc giong co san. Xem cach mo khoa trong README muc 2a."
+        )
 
     for thu_muc in (THU_MUC_VAO, THU_MUC_GIONG, THU_MUC_RA):
         thu_muc.mkdir(parents=True, exist_ok=True)
