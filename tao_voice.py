@@ -1379,14 +1379,19 @@ def tu_kiem_tra() -> int:
     engine = MayDocGia()
     tuy_chon = argparse.Namespace(
         lam_lai=True, chia_thu_muc=False, cat_lang=False, chuan_am_luong=True,
-        khong_srt=False, whisper_model="small", luong=None, chuyen_kich_ban=False,
+        khong_srt=False, whisper_model="(khong dung)", luong=None, chuyen_kich_ban=False,
     )
     goc_ra = globals()["THU_MUC_RA"]
+    goc_whisper = globals()["nhan_dang_bang_whisper"]
     globals()["THU_MUC_RA"] = thu_muc
+    # Bai tu kiem tra phai chay duoc khi khong co mang: khong tai model whisper ve,
+    # thay vao do kiem tra duong lui uoc luong moc thoi gian.
+    globals()["nhan_dang_bang_whisper"] = lambda *a, **k: []
     try:
         ket_qua = xu_ly_mot_file(file_txt, {"kenh": {}}, engine, tuy_chon)
     finally:
         globals()["THU_MUC_RA"] = goc_ra
+        globals()["nhan_dang_bang_whisper"] = goc_whisper
 
     if not ket_qua.ok or not ket_qua.wav or not ket_qua.wav.exists():
         loi.append("khong tao duoc file WAV")
