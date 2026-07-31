@@ -9,7 +9,8 @@
     "whisper_lang: de null cho tu suy ra tu model (english -> en, portuguese -> pt).",
     "quantize: true = nen model xuong int8, nhanh hon ~27% va do RAM ~48% tren CPU Intel/AMD. Nen bat neu may doi cu hoac RAM 8GB. Chat luong giong khong doi.",
     "whisper_model: tiny/base/small/medium. Chu trong SRT lay tu kich ban chu khong tu whisper, nen 'base' da du chinh xac va nhanh gap doi 'small'.",
-    "The <break time=\"1s\"/> trong kich ban se duoc doi thanh khoang lang dung 1 giay."
+    "The <break time=\"1s\"/> trong kich ban se duoc doi thanh khoang lang dung 1 giay.",
+    "hau_ky: tat | nhe | chuan | manh. Loc u tan thap, giam tap am, bot chói, EQ cho ro loi, nen dong, chuan do to ve -16 LUFS (chuan YouTube)."
   ],
   "mac_dinh": {
     "model": "english",
@@ -21,7 +22,8 @@
     "temperature": null,
     "whisper_lang": null,
     "quantize": true,
-    "whisper_model": "base"
+    "whisper_model": "base",
+    "hau_ky": "chuan"
   },
   "kenh": {
     "TERCO1": {

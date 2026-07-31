@@ -111,6 +111,8 @@ CAU_HINH_MAU = {
         " Cao do giong khong doi.",
         "cao_do: 0 = giu nguyen, -2 = tram hon 2 nua cung (nam tinh hon), +2 = cao hon."
         " Do dai khong doi. Qua -4/+4 se bat dau nghe gia tao.",
+        "hau_ky: tat | nhe | chuan | manh. Loc u, giam tap am, bot chói, EQ cho ro loi,"
+        " nen dong, roi chuan do to ve -16 LUFS nhu chuan YouTube. 'chuan' hop hau het.",
     ],
     "mac_dinh": {
         "model": "english",
@@ -125,6 +127,7 @@ CAU_HINH_MAU = {
         "whisper_model": "small",
         "toc_do": 1.0,
         "cao_do": 0.0,
+        "hau_ky": "chuan",
     },
     "kenh": {
         "TERCO1": {"model": "portuguese", "voice": "TERCO1.wav"},
@@ -405,6 +408,7 @@ class CauHinhKenh:
     whisper_lang: str | None
     toc_do: float = 1.0
     cao_do: float = 0.0
+    hau_ky: str = "chuan"
 
     @property
     def ma_whisper(self) -> str | None:
@@ -495,6 +499,7 @@ def lay_cau_hinh_kenh(ten_file: str, cau_hinh: dict, im_lang: bool = False) -> C
         whisper_lang=(gop.get("whisper_lang") or None),
         toc_do=float(gop.get("toc_do", 1.0)),
         cao_do=float(gop.get("cao_do", 0.0)),
+        hau_ky=str(gop.get("hau_ky", "chuan")).lower(),
     )
 
 
@@ -834,9 +839,291 @@ def chuan_bien_do(am: "object", dinh_db: float = -1.0):
     return am * (10.0 ** (dinh_db / 20.0) / dinh)
 
 
+# ---------------------------------------------------------------------------
+# 4b. Hau ky: lam sach va "len tieng" cho ban thu
+# ---------------------------------------------------------------------------
+
+
+def _bq_thong_cao(sr: int, f0: float, Q: float):
+    """Biquad loc thong cao (cong thuc RBJ)."""
+    np = _np()
+    w = 2 * np.pi * f0 / sr
+    a = np.sin(w) / (2 * Q)
+    c = np.cos(w)
+    b = [(1 + c) / 2, -(1 + c), (1 + c) / 2]
+    a_ = [1 + a, -2 * c, 1 - a]
+    return np.array([b[0] / a_[0], b[1] / a_[0], b[2] / a_[0],
+                     1.0, a_[1] / a_[0], a_[2] / a_[0]], dtype=np.float64)
+
+
+def _bq_ke_cao(sr: int, f0: float, do_loi_db: float, Q: float):
+    """Biquad shelf cao (nang/ha toan bo vung tren f0)."""
+    np = _np()
+    A = 10 ** (do_loi_db / 40)
+    w = 2 * np.pi * f0 / sr
+    c, s = np.cos(w), np.sin(w)
+    al = s / (2 * Q)
+    can = 2 * np.sqrt(A) * al
+    b = [A * ((A + 1) + (A - 1) * c + can),
+         -2 * A * ((A - 1) + (A + 1) * c),
+         A * ((A + 1) + (A - 1) * c - can)]
+    a = [(A + 1) - (A - 1) * c + can,
+         2 * ((A - 1) - (A + 1) * c),
+         (A + 1) - (A - 1) * c - can]
+    return np.array([b[0] / a[0], b[1] / a[0], b[2] / a[0],
+                     1.0, a[1] / a[0], a[2] / a[0]], dtype=np.float64)
+
+
+def _bq_ke_thap(sr: int, f0: float, do_loi_db: float, Q: float):
+    np = _np()
+    A = 10 ** (do_loi_db / 40)
+    w = 2 * np.pi * f0 / sr
+    c, s = np.cos(w), np.sin(w)
+    al = s / (2 * Q)
+    can = 2 * np.sqrt(A) * al
+    b = [A * ((A + 1) - (A - 1) * c + can),
+         2 * A * ((A - 1) - (A + 1) * c),
+         A * ((A + 1) - (A - 1) * c - can)]
+    a = [(A + 1) + (A - 1) * c + can,
+         -2 * ((A - 1) + (A + 1) * c),
+         (A + 1) + (A - 1) * c - can]
+    return np.array([b[0] / a[0], b[1] / a[0], b[2] / a[0],
+                     1.0, a[1] / a[0], a[2] / a[0]], dtype=np.float64)
+
+
+def _bq_dinh(sr: int, f0: float, do_loi_db: float, Q: float):
+    """Biquad peaking: nang/ha mot vung tan so hep."""
+    np = _np()
+    A = 10 ** (do_loi_db / 40)
+    w = 2 * np.pi * f0 / sr
+    c, s = np.cos(w), np.sin(w)
+    al = s / (2 * Q)
+    b = [1 + al * A, -2 * c, 1 - al * A]
+    a = [1 + al / A, -2 * c, 1 - al / A]
+    return np.array([b[0] / a[0], b[1] / a[0], b[2] / a[0],
+                     1.0, a[1] / a[0], a[2] / a[0]], dtype=np.float64)
+
+
+def _loc(am, cac_sos):
+    from scipy.signal import sosfilt
+
+    np = _np()
+    return sosfilt(np.array(cac_sos), am.astype(np.float64)).astype(np.float32)
+
+
+def do_lufs(am: "object", sample_rate: int) -> float:
+    """Do do to theo chuan phat thanh ITU-R BS.1770 (K-weighting)."""
+    np = _np()
+    if am.size < sample_rate // 10:
+        return -70.0
+    k = _loc(am, [_bq_ke_cao(sample_rate, 1681.97, 3.999, 0.7071),
+                  _bq_thong_cao(sample_rate, 38.13, 0.5003)])
+    ms = float(np.mean(k.astype(np.float64) ** 2))
+    return -0.691 + 10 * np.log10(ms + 1e-12)
+
+
+def giam_tap_am(am: "object", sample_rate: int, muc_db: float = 9.0):
+    """Ha nen on/hiss bang cach tru pho, do nen on tu nhung khung im nhat."""
+    from scipy.signal import istft, stft
+
+    np = _np()
+    if am.size < sample_rate // 4:
+        return am
+    from scipy.ndimage import uniform_filter1d
+
+    f, t, Z = stft(am.astype(np.float64), fs=sample_rate, nperseg=1024, noverlap=512)
+    bien = np.abs(Z)
+    # nen on = muc thap nhat cua tung dai tan so (lay 10% khung im nhat)
+    nen = np.percentile(bien, 10, axis=1, keepdims=True)
+    toi_da = 10 ** (-abs(muc_db) / 20)          # khong ha qua muc nay
+    he_so = np.clip((bien - 1.5 * nen) / (bien + 1e-9), toi_da, 1.0)
+    # lam muot theo thoi gian cho khoi "loc xoc" (vectorise, khong lap Python)
+    he_so = uniform_filter1d(he_so, size=3, axis=1, mode="nearest")
+    _, ra = istft(Z * he_so, fs=sample_rate, nperseg=1024, noverlap=512)
+    return ra[: am.size].astype(np.float32)
+
+
+def giam_xit(am: "object", sample_rate: int, nguong_db: float = -26.0, giam_toi_da: float = 6.0):
+    """De-esser: ha bot tieng 'x, s, sh' chi khi no vot len, khong dung cham cho khac."""
+    from scipy.signal import butter, sosfilt
+
+    np = _np()
+    cao = min(0.99, 9000 / (sample_rate / 2))
+    thap = min(cao * 0.9, 5000 / (sample_rate / 2))
+    sos = butter(2, [thap, cao], btype="band", output="sos")
+    dai = sosfilt(sos, am.astype(np.float64))
+
+    from scipy.ndimage import uniform_filter1d
+
+    cua = max(1, int(sample_rate * 0.005))
+    bao = uniform_filter1d(np.abs(dai), size=cua, mode="nearest")
+    bao_db = 20 * np.log10(bao + 1e-9)
+    vuot = np.maximum(0.0, bao_db - nguong_db)
+    ha_db = np.minimum(vuot * 0.6, giam_toi_da)
+    he_so = 10 ** (-ha_db / 20)
+    return (am - dai * (1 - he_so)).astype(np.float32)
+
+
+_BUOC_BAO = 32  # tinh duong bao thua ra roi noi suy: nhanh gap 32 lan, tai nghe khong phan biet
+
+
+def _muot_tan_cong_nha(v, sample_rate: int, tan_cong_ms: float, nha_ms: float):
+    """Lam muot duong bao kieu tan cong nhanh / nha cham, chay o toc do thua."""
+    np = _np()
+    sr_thua = sample_rate / _BUOC_BAO
+    a_tc = np.exp(-1.0 / max(1e-6, sr_thua * tan_cong_ms / 1000))
+    a_nh = np.exp(-1.0 / max(1e-6, sr_thua * nha_ms / 1000))
+    ra = np.empty_like(v)
+    truoc = 0.0
+    for i, x in enumerate(v):
+        he = a_tc if x > truoc else a_nh
+        truoc = he * truoc + (1 - he) * x
+        ra[i] = truoc
+    return ra
+
+
+def _giai_ra(v_thua, n: int):
+    np = _np()
+    if v_thua.size < 2:
+        return np.full(n, float(v_thua[0]) if v_thua.size else 0.0)
+    return np.interp(np.arange(n), np.arange(v_thua.size) * _BUOC_BAO, v_thua)
+
+
+def nen_dong(am: "object", sample_rate: int, nguong_db: float = -22.0, ty_le: float = 2.5,
+             tan_cong_ms: float = 10.0, nha_ms: float = 150.0):
+    """Nen dai dong: cau to cau nho deu nhau hon, nghe 'da qua phong thu'."""
+    np = _np()
+    if am.size < sample_rate // 10:
+        return am
+    from scipy.ndimage import uniform_filter1d
+
+    cua = max(1, int(sample_rate * 0.003))
+    binh_phuong = uniform_filter1d(am.astype(np.float64) ** 2, size=cua, mode="nearest")
+    bao = np.sqrt(np.maximum(binh_phuong, 0.0)) + 1e-9
+    ha_db = np.maximum(0.0, 20 * np.log10(bao) - nguong_db) * (1 - 1 / ty_le)
+
+    muot = _muot_tan_cong_nha(ha_db[::_BUOC_BAO], sample_rate, tan_cong_ms, nha_ms)
+    return (am * (10 ** (-_giai_ra(muot, am.size) / 20))).astype(np.float32)
+
+
+def gioi_han_dinh(am: "object", sample_rate: int, tran_db: float = -1.5,
+                  nhin_truoc_ms: float = 3.0, nha_ms: float = 80.0):
+    """Chan dinh bang limiter: chi ghim dung cho vot len, KHONG ha nho ca bai.
+
+    Ha ca bai (nhu chuan_bien_do) se lam mat cong chuan do to vua lam xong.
+    """
+    from scipy.ndimage import maximum_filter1d
+
+    np = _np()
+    tran = 10 ** (tran_db / 20)
+    dinh = float(np.max(np.abs(am))) if am.size else 0.0
+    if dinh <= tran or am.size < sample_rate // 100:
+        return am
+
+    n_nhin = max(1, int(sample_rate * nhin_truoc_ms / 1000))
+    bao = maximum_filter1d(np.abs(am).astype(np.float64), size=2 * n_nhin + 1)
+    ha_db = np.maximum(0.0, 20 * np.log10((bao + 1e-9) / tran))
+
+    muot = _muot_tan_cong_nha(ha_db[::_BUOC_BAO], sample_rate, 0.5, nha_ms)
+    ra = am * (10 ** (-_giai_ra(muot, am.size) / 20))
+    return np.clip(ra, -tran, tran).astype(np.float32)
+
+
+def can_muc_cac_doan(cac_am: list, gioi_han_db: float = 4.0) -> list:
+    """Keo am luong cac cau ve gan nhau -> khong con cau to cau nho giat cuc."""
+    np = _np()
+    if len(cac_am) < 2:
+        return cac_am
+    rms = np.array([float(np.sqrt(np.mean(a.astype(np.float64) ** 2)) + 1e-9) for a in cac_am])
+    dich = float(np.median(rms))
+    ra = []
+    for a, r in zip(cac_am, rms):
+        db = float(np.clip(20 * np.log10(dich / r), -gioi_han_db, gioi_han_db))
+        ra.append((a * (10 ** (db / 20))).astype(np.float32))
+    return ra
+
+
+MUC_HAU_KY = ("tat", "nhe", "chuan", "manh")
+
+
+def xu_ly_hau_ky(am: "object", sample_rate: int, muc: str = "chuan",
+                 lufs_dich: float = -16.0, tran_db: float = -1.5):
+    """Chuoi hau ky: bo u -> giam on -> bot chói -> EQ -> nen -> chuan do to.
+
+    muc: tat | nhe | chuan | manh
+    """
+    np = _np()
+    muc = (muc or "chuan").lower()
+    if muc not in MUC_HAU_KY:
+        muc = "chuan"
+    if muc == "tat" or am.size < sample_rate // 10:
+        return chuan_bien_do(am, tran_db)
+
+    am = am - float(np.mean(am))                       # bo lech DC
+    # Loc thong cao bac 4 (Butterworth) tai 80 Hz: giong nguoi khong co gi duoi day,
+    # chi co u nen, tieng gio, rung ban - cat han cho tieng "sach".
+    am = _loc(am, [_bq_thong_cao(sample_rate, 80.0, 0.5412),
+                   _bq_thong_cao(sample_rate, 80.0, 1.3066)])
+
+    if muc in ("chuan", "manh"):
+        am = giam_tap_am(am, sample_rate, muc_db=9.0 if muc == "chuan" else 14.0)
+        am = giam_xit(am, sample_rate)
+
+    # EQ: am hon mot chut, bot duc, ro loi hon
+    am = _loc(am, [
+        _bq_ke_thap(sample_rate, 140.0, 1.5, 0.707),   # them am
+        _bq_dinh(sample_rate, 350.0, -2.0, 1.0),       # bot duc
+        _bq_dinh(sample_rate, 3200.0, 2.0, 0.8),       # ro loi
+        _bq_ke_cao(sample_rate, 9000.0, -1.0, 0.707),  # bot gat
+    ])
+
+    if muc in ("chuan", "manh"):
+        am = nen_dong(am, sample_rate,
+                      nguong_db=-22.0 if muc == "chuan" else -26.0,
+                      ty_le=2.5 if muc == "chuan" else 3.5)
+
+    # Chuan do to ve muc phat thanh roi ghim dinh bang limiter.
+    # Lam hai vong: limiter co the keo do to tut xuong chut, vong hai bu lai.
+    for _ in range(2):
+        do_to = do_lufs(am, sample_rate)
+        if do_to <= -70:
+            break
+        thieu = lufs_dich - do_to
+        if abs(thieu) < 0.3:
+            break
+        am = am * (10 ** (thieu / 20))
+        am = gioi_han_dinh(am, sample_rate, tran_db)
+    am = gioi_han_dinh(am, sample_rate, tran_db)
+    return np.clip(np.nan_to_num(am, nan=0.0, posinf=0.0, neginf=0.0), -1.0, 1.0).astype(np.float32)
+
+
+def ghep_cac_doan(doan: list, cac_am: list, sample_rate: int, can_muc: bool = True):
+    """Can muc cac cau, chen khoang lang, va dien moc thoi gian vao tung cau."""
+    np = _np()
+    if can_muc:
+        cac_am = can_muc_cac_doan(cac_am)
+
+    manh = []
+    tong = 0
+    for mot_doan, am in zip(doan, cac_am):
+        mot_doan.bat_dau = tong
+        tong += am.size
+        mot_doan.ket_thuc = tong
+        manh.append(am)
+        n = int(mot_doan.nghi_sau * sample_rate)
+        if n > 0:
+            manh.append(np.zeros(n, dtype=np.float32))
+            tong += n
+    return np.concatenate(manh).astype(np.float32) if manh else np.zeros(0, dtype=np.float32)
+
+
 def ghi_wav(duong_dan: Path, am: "object", sample_rate: int) -> None:
     """Ghi WAV mono 16-bit PCM (dinh dang an toan nhat cho moi phan mem dung)."""
     np = _np()
+    so_hong = int(np.count_nonzero(~np.isfinite(am)))
+    if so_hong:
+        log.error("Co %d mau am thanh khong hop le (NaN/inf) -> thay bang im lang.", so_hong)
+        am = np.nan_to_num(am, nan=0.0, posinf=0.0, neginf=0.0)
     du_lieu = np.clip(am, -1.0, 1.0)
     pcm = (du_lieu * 32767.0).astype("<i2")
     duong_dan.parent.mkdir(parents=True, exist_ok=True)
@@ -1580,6 +1867,8 @@ def xu_ly_mot_file(
         cfg.toc_do = tuy_chon.toc_do
     if tuy_chon.cao_do is not None:
         cfg.cao_do = tuy_chon.cao_do
+    if tuy_chon.hau_ky is not None:
+        cfg.hau_ky = tuy_chon.hau_ky
 
     doan = doc_kich_ban(duong_dan, cfg)
     if not doan:
@@ -1596,8 +1885,8 @@ def xu_ly_mot_file(
     trang_thai = engine.trang_thai_giong(cfg.model, cfg.giong, cfg.temperature)
     sample_rate = engine.sample_rate
 
-    manh: list[object] = []
-    tong_mau = 0
+    cac_am: list = []
+    doan_co_am: list[DoanNoi] = []
     for i, mot_doan in enumerate(doan, 1):
         t0 = time.time()
         try:
@@ -1615,15 +1904,8 @@ def xu_ly_mot_file(
             am = doi_cao_do(am, sample_rate, cfg.cao_do)
         am = vuot_bien(am, sample_rate)
 
-        mot_doan.bat_dau = tong_mau
-        tong_mau += am.size
-        mot_doan.ket_thuc = tong_mau
-        manh.append(am)
-
-        so_mau_nghi = int(mot_doan.nghi_sau * sample_rate)
-        if so_mau_nghi > 0:
-            manh.append(np.zeros(so_mau_nghi, dtype=np.float32))
-            tong_mau += so_mau_nghi
+        cac_am.append(am)
+        doan_co_am.append(mot_doan)
 
         giay_am = am.size / sample_rate
         log.info(
@@ -1633,12 +1915,13 @@ def xu_ly_mot_file(
             (mot_doan.text[:56] + "...") if len(mot_doan.text) > 56 else mot_doan.text,
         )
 
-    if not manh:
+    if not cac_am:
         return KetQua(duong_dan, False, "khong sinh duoc am thanh")
 
-    toan_bo = np.concatenate(manh).astype(np.float32)
-    if tuy_chon.chuan_am_luong:
-        toan_bo = chuan_bien_do(toan_bo)
+    toan_bo = ghep_cac_doan(doan_co_am, cac_am, sample_rate)
+    muc_hau_ky = cfg.hau_ky if tuy_chon.chuan_am_luong else "tat"
+    log.info("HAU KY   : %s", muc_hau_ky)
+    toan_bo = xu_ly_hau_ky(toan_bo, sample_rate, muc_hau_ky)
 
     ghi_wav(file_wav, toan_bo, sample_rate)
     tong_giay = toan_bo.size / sample_rate
@@ -1756,7 +2039,7 @@ def tu_kiem_tra() -> int:
     tuy_chon = argparse.Namespace(
         lam_lai=True, chia_thu_muc=False, cat_lang=False, chuan_am_luong=True,
         khong_srt=False, whisper_model="(khong dung)", luong=None, chuyen_kich_ban=False,
-        toc_do=None, cao_do=None,
+        toc_do=None, cao_do=None, hau_ky=None,
     )
     goc_ra = globals()["THU_MUC_RA"]
     goc_whisper = globals()["nhan_dang_bang_whisper"]
@@ -1828,6 +2111,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
                    help="Ep toc do doc: 0.85 = cham hon 15%%, 1.15 = nhanh hon (cao do khong doi)")
     p.add_argument("--cao-do", type=float, default=None, metavar="N",
                    help="Ep cao do: -2 = tram hon 2 nua cung, +2 = cao hon (do dai khong doi)")
+    p.add_argument("--hau-ky", choices=MUC_HAU_KY, default=None,
+                   help="Muc xu ly hau ky am thanh (mac dinh lay tu channels.json)")
     p.add_argument("--khong-cat-lang", dest="cat_lang", action="store_false",
                    help="Giu nguyen khoang lang model tu sinh o dau/cuoi cau")
     p.add_argument("--khong-chuan-am-luong", dest="chuan_am_luong", action="store_false",

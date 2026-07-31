@@ -123,6 +123,7 @@ def chay_cong_viec(viec: CongViec, van_ban: str, tuy_chon: dict) -> None:
             whisper_lang=None,
             toc_do=float(tuy_chon.get("toc_do", 1.0)),
             cao_do=float(tuy_chon.get("cao_do", 0.0)),
+            hau_ky=str(tuy_chon.get("hau_ky", "chuan")),
         )
 
         doan = tv.tach_kich_ban(van_ban, cfg)
@@ -137,8 +138,7 @@ def chay_cong_viec(viec: CongViec, van_ban: str, tuy_chon: dict) -> None:
         trang_thai_giong = engine.trang_thai_giong(cfg.model, cfg.giong, cfg.temperature)
         sample_rate = engine.sample_rate
 
-        manh: list = []
-        tong_mau = 0
+        cac_am: list = []
         for i, mot_doan in enumerate(doan, 1):
             viec.cau_dang_doc = mot_doan.text[:70]
             am = engine.doc_voi_model(cfg.model, trang_thai_giong, mot_doan.text, cfg.temperature)
@@ -149,18 +149,12 @@ def chay_cong_viec(viec: CongViec, van_ban: str, tuy_chon: dict) -> None:
                 am = tv.doi_cao_do(am, sample_rate, cfg.cao_do)
             am = tv.vuot_bien(am, sample_rate)
 
-            mot_doan.bat_dau = tong_mau
-            tong_mau += am.size
-            mot_doan.ket_thuc = tong_mau
-            manh.append(am)
-
-            so_mau_nghi = int(mot_doan.nghi_sau * sample_rate)
-            if so_mau_nghi > 0:
-                manh.append(np.zeros(so_mau_nghi, dtype=np.float32))
-                tong_mau += so_mau_nghi
+            cac_am.append(am)
             viec.xong = i
 
-        toan_bo = tv.chuan_bien_do(np.concatenate(manh).astype(np.float32))
+        viec.cau_dang_doc = "Dang lam sach va can am luong..."
+        toan_bo = tv.ghep_cac_doan(doan, cac_am, sample_rate)
+        toan_bo = tv.xu_ly_hau_ky(toan_bo, sample_rate, cfg.hau_ky)
         THU_MUC_RA_WEB.mkdir(parents=True, exist_ok=True)
         ten_goc = f"{time.strftime('%Y%m%d_%H%M%S')}_{cfg.ten}"
         wav = THU_MUC_RA_WEB / f"{ten_goc}.wav"
@@ -220,6 +214,7 @@ def tao_app():
         nghi_dai: float = Form(0.85),
         toc_do: float = Form(1.0),
         cao_do: float = Form(0.0),
+        hau_ky: str = Form("chuan"),
         srt: bool = Form(False),
         ten_ra: str = Form(""),
     ):
@@ -236,6 +231,7 @@ def tao_app():
             args=(viec, van_ban, {
                 "model": model, "giong": giong, "nghi_ngan": nghi_ngan,
                 "nghi_dai": nghi_dai, "toc_do": toc_do, "cao_do": cao_do,
+                "hau_ky": hau_ky,
                 "srt": srt, "ten_ra": ten_ra,
             }),
             daemon=True,
@@ -388,6 +384,14 @@ De mot dong trong thi nghi dai."></textarea>
       </div>
       <div id="nx"></div>
 
+      <label>Xu ly am thanh</label>
+      <select id="hk">
+        <option value="chuan" selected>Chuan — lam sach + can am luong (nen dung)</option>
+        <option value="nhe">Nhe — chi loc u va can am luong</option>
+        <option value="manh">Manh — giam tap am nhieu hon (mau giong bi on)</option>
+        <option value="tat">Tat — giu nguyen tieng model sinh ra</option>
+      </select>
+
       <label>Toc do doc: <b id="td_so">1.00x</b> <span class="mo">(cao do khong doi)</span></label>
       <input type="range" id="td" min="0.70" max="1.30" step="0.01" value="1.00"
              oninput="td_so.textContent=(+this.value).toFixed(2)+'x'">
@@ -436,7 +440,7 @@ async function nap(){
 nap();
 
 // nho lua chon .srt, toc do, cao do cho lan sau
-const NHO = ['srt','td','cd','nn1','nn2'];
+const NHO = ['srt','td','cd','nn1','nn2','hk'];
 NHO.forEach(id => {
   const o = $('#'+id), luu = localStorage.getItem('tv_'+id);
   if (luu !== null) { if (o.type === 'checkbox') o.checked = luu === '1'; else o.value = luu; }
@@ -475,6 +479,7 @@ async function tao(){
   fd.append('nghi_dai', $('#nn2').value);
   fd.append('toc_do', $('#td').value);
   fd.append('cao_do', $('#cd').value);
+  fd.append('hau_ky', $('#hk').value);
   fd.append('srt', $('#srt').checked ? 'true' : 'false');
 
   const r = await fetch('/api/doc', {method:'POST', body:fd});

@@ -182,6 +182,7 @@ python tao_voice.py [file/thư mục ...] [tuỳ chọn]
 --temperature 0.6         ép temperature cho mọi kênh
 --toc-do 0.88             tốc độ đọc: 0.85 = chậm hơn 15% (cao độ không đổi)
 --cao-do -1.5             cao độ: −2 = trầm hơn 2 nửa cung (độ dài không đổi)
+--hau-ky chuan            xử lý âm thanh: tat | nhe | chuan | manh
 --khong-cat-lang          giữ nguyên khoảng lặng model tự sinh ở đầu/cuối câu
 --khong-chuan-am-luong    không chuẩn hoá biên độ về -1 dBFS
 --chia-thu-muc            xuất vào XONG\<TÊN_KÊNH>\
