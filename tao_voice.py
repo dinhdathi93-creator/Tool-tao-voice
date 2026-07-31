@@ -359,7 +359,11 @@ def tach_cau(khoi: str) -> list[str]:
 
 def doc_kich_ban(duong_dan: Path, cfg: CauHinhKenh) -> list[DoanNoi]:
     """Doc file .txt -> danh sach DoanNoi theo dung quy uoc ngat."""
-    raw = duong_dan.read_text(encoding="utf-8-sig", errors="replace")
+    return tach_kich_ban(duong_dan.read_text(encoding="utf-8-sig", errors="replace"), cfg)
+
+
+def tach_kich_ban(raw: str, cfg: CauHinhKenh) -> list[DoanNoi]:
+    """Tach van ban thanh cac cau + do dai nghi. Dung chung cho ca CLI lan giao dien web."""
     raw = raw.replace("\r\n", "\n").replace("\r", "\n")
     raw = raw.replace("\u00a0", " ").replace("\u200b", "")
 

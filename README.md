@@ -1,4 +1,6 @@
 > Repo này có 2 tool:
+> Thích bấm nút hơn gõ lệnh? Xem **[GIAO DIỆN WEB](README_GIAODIEN.md)** — bấm đúp `GIAO_DIEN.bat`.
+>
 > **TAO_VOICE** (dưới đây) đọc kịch bản thành giọng nói, và
 > **[TAO_ANH](README_ANH.md)** tạo ảnh AI hàng loạt cho 5 kênh.
 
