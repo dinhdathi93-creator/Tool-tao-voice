@@ -30,6 +30,19 @@ Engine `pocket-tts` chạy trên CPU không có những thứ này — nói trư
 - **Lồng tiếng theo timeline file SRT có sẵn** — công cụ này sinh SRT *ra*, không đọc theo SRT *vào*.
 - **Từ điển phát âm** — chưa có. Cách vòng: viết lại chữ theo cách đọc (ví dụ `Terço` → `Tersso`).
 
+## Từ thử nghiệm sang chạy hàng loạt — nút "Lưu cài đặt này cho kênh"
+
+Chỉnh trên giao diện đến khi nghe ưng, rồi bấm **Lưu cài đặt này cho kênh** ở dưới nút Tạo giọng.
+Nó ghi thẳng vào `channels.json`: ngôn ngữ, giọng, mức xử lý âm thanh, tốc độ, cao độ, độ dài nghỉ.
+
+Từ đó thả file `TERCO1_*.txt` vào `TAO_VOICE.bat` là chạy **đúng y cài đặt bạn vừa nghe ưng**,
+không phải nhớ, không phải sửa JSON tay.
+
+Ô **Kênh** ở đầu cột phải làm chiều ngược lại: chọn kênh nào thì mọi ô tự nạp lại đúng cài đặt
+kênh đó đang dùng — tiện để nghe lại xem kênh cũ đang đặt gì, hoặc chỉnh tiếp rồi lưu đè.
+
+Lưu cho kênh chưa có trong danh sách cũng được: bấm nút rồi gõ tên mới, nó tự tạo mục.
+
 ## Chạy hàng loạt thì vẫn dùng `TAO_VOICE.bat`
 
 Giao diện web hợp để **thử giọng, làm 1–2 đoạn ngắn, nghe ngay**. Còn chạy cả hàng đợi

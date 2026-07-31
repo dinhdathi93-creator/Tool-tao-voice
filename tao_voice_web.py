@@ -203,7 +203,66 @@ def tao_app():
 
     @app.get("/api/giong")
     def api_giong():
-        return {"giong": danh_sach_giong(), "ngon_ngu": NGON_NGU}
+        cau_hinh = tv.doc_cau_hinh()
+        cau_hinh.pop("_vua_tao", None)
+        mac_dinh = cau_hinh.get("mac_dinh") or {}
+        cac_kenh = {}
+        for ten, muc in (cau_hinh.get("kenh") or {}).items():
+            gop = {**mac_dinh, **(muc or {})}
+            cac_kenh[str(ten).upper()] = {
+                "model": gop.get("model", "english"),
+                "voice": gop.get("voice", ""),
+                "hau_ky": gop.get("hau_ky", "chuan"),
+                "toc_do": float(gop.get("toc_do", 1.0)),
+                "cao_do": float(gop.get("cao_do", 0.0)),
+                "nghi_ngan": float(gop.get("nghi_ngan", 0.30)),
+                "nghi_dai": float(gop.get("nghi_dai", 0.85)),
+            }
+        return {"giong": danh_sach_giong(), "ngon_ngu": NGON_NGU, "kenh": cac_kenh}
+
+    @app.post("/api/luu-kenh")
+    def api_luu_kenh(
+        ten_kenh: str = Form(...),
+        model: str = Form("english"),
+        giong: str = Form(""),
+        hau_ky: str = Form("chuan"),
+        toc_do: float = Form(1.0),
+        cao_do: float = Form(0.0),
+        nghi_ngan: float = Form(0.30),
+        nghi_dai: float = Form(0.85),
+    ):
+        """Ghi cai dat dang thu nghiem vao channels.json de TAO_VOICE.bat dung lai."""
+        import re
+
+        ten_kenh = ten_kenh.strip().upper()
+        if not re.fullmatch(r"[A-Z0-9]+", ten_kenh or ""):
+            raise HTTPException(400, "Ten kenh chi dung chu va so khong dau.")
+        if model not in MA_HOP_LE:
+            raise HTTPException(400, f"Ngon ngu '{model}' khong dung.")
+        if hau_ky not in tv.MUC_HAU_KY:
+            raise HTTPException(400, f"Muc xu ly '{hau_ky}' khong dung.")
+
+        cau_hinh = tv.doc_cau_hinh()
+        cau_hinh.pop("_vua_tao", None)
+        cac_kenh = cau_hinh.setdefault("kenh", {})
+        khoa = next((k for k in cac_kenh if str(k).upper() == ten_kenh), ten_kenh)
+        muc = dict(cac_kenh.get(khoa) or {})
+        muc.update({
+            "model": model,
+            "voice": giong or muc.get("voice", ""),
+            "hau_ky": hau_ky,
+            "toc_do": round(float(toc_do), 3),
+            "cao_do": round(float(cao_do), 2),
+            "nghi_ngan": round(float(nghi_ngan), 3),
+            "nghi_dai": round(float(nghi_dai), 3),
+        })
+        cac_kenh[khoa] = muc
+
+        tv.FILE_CAU_HINH.write_text(
+            json.dumps(cau_hinh, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        log.info("Web: da luu cai dat cho kenh %s -> %s", khoa, json.dumps(muc, ensure_ascii=False))
+        return {"ok": True, "ten": khoa, "muc": muc}
 
     @app.post("/api/doc")
     def api_doc(
@@ -373,6 +432,12 @@ De mot dong trong thi nghi dai."></textarea>
 
   <div>
     <div class="hop">
+      <label>Kenh</label>
+      <select id="kenh"></select>
+      <div class="meo" style="margin-top:4px">
+        Chon kenh se nap lai dung cai dat dang dung khi chay hang loat.
+      </div>
+
       <label>Ngon ngu</label>
       <select id="nn"></select>
 
@@ -418,6 +483,10 @@ De mot dong trong thi nghi dai."></textarea>
         <button id="nut" onclick="tao()">Tao giong</button>
         <span id="tt" class="mo"></span>
       </div>
+      <div class="hang" style="margin-top:10px">
+        <button class="phu" onclick="luuKenh()">Luu cai dat nay cho kenh</button>
+      </div>
+      <div id="luu_tt" class="meo"></div>
       <div id="thanh"><i></i></div>
       <div id="kq"></div>
     </div>
@@ -428,9 +497,15 @@ De mot dong trong thi nghi dai."></textarea>
 const $ = s => document.querySelector(s);
 let dangChay = false;
 
+let CAC_KENH = {};
+
 async function nap(){
   const d = await (await fetch('/api/giong')).json();
+  CAC_KENH = d.kenh || {};
   $('#nn').innerHTML = d.ngon_ngu.map(n=>`<option value="${n.ma}">${n.ten}</option>`).join('');
+  const ten = Object.keys(CAC_KENH).sort();
+  $('#kenh').innerHTML = '<option value="">(tu chon tay - khong theo kenh nao)</option>'
+    + ten.map(k=>`<option value="${k}">${k}</option>`).join('');
   const g = d.giong;
   // Luon co lua chon "giong san" -> thu duoc ngay ca khi chua mo khoa clone giong
   $('#giong').innerHTML =
@@ -438,6 +513,44 @@ async function nap(){
     + '<option value="">Giong co san cua model (khong can clone)</option>';
 }
 nap();
+
+$('#kenh').onchange = () => {
+  const k = CAC_KENH[$('#kenh').value];
+  if(!k) return;
+  $('#nn').value = k.model;
+  if(k.voice) { const o=[...$('#giong').options].find(o=>o.value===k.voice); if(o) $('#giong').value=k.voice; }
+  $('#hk').value  = k.hau_ky;
+  $('#td').value  = k.toc_do;  $('#td').dispatchEvent(new Event('input'));
+  $('#cd').value  = k.cao_do;  $('#cd').dispatchEvent(new Event('input'));
+  $('#nn1').value = k.nghi_ngan.toFixed(2);
+  $('#nn2').value = k.nghi_dai.toFixed(2);
+  $('#luu_tt').textContent = 'Da nap cai dat cua kenh ' + $('#kenh').value;
+  $('#luu_tt').className = 'meo';
+};
+
+async function luuKenh(){
+  let ten = $('#kenh').value;
+  if(!ten) ten = (prompt('Luu cai dat nay cho kenh nao? (vi du TERCO1)','') || '').trim();
+  if(!ten) return;
+  const fd = new FormData();
+  fd.append('ten_kenh', ten);
+  fd.append('model', $('#nn').value);
+  fd.append('giong', $('#giong').value);
+  fd.append('hau_ky', $('#hk').value);
+  fd.append('toc_do', $('#td').value);
+  fd.append('cao_do', $('#cd').value);
+  fd.append('nghi_ngan', $('#nn1').value);
+  fd.append('nghi_dai', $('#nn2').value);
+  const r = await fetch('/api/luu-kenh', {method:'POST', body:fd});
+  const d = await r.json().catch(()=>({}));
+  if(r.ok){
+    await nap(); $('#kenh').value = d.ten;
+    $('#luu_tt').innerHTML = `<span class="dat">Da luu vao channels.json cho kenh <b>${d.ten}</b>.
+      Tu gio tha file <code>${d.ten}_*.txt</code> vao TAO_VOICE.bat la chay dung cai dat nay.</span>`;
+  } else {
+    $('#luu_tt').innerHTML = '<span class="loi">Loi: '+(d.detail||'khong luu duoc')+'</span>';
+  }
+}
 
 // nho lua chon .srt, toc do, cao do cho lan sau
 const NHO = ['srt','td','cd','nn1','nn2','hk'];
