@@ -4,6 +4,9 @@
 > **TAO_VOICE** (dưới đây) đọc kịch bản thành giọng nói,
 > **[TAO_ANH](README_ANH.md)** tạo ảnh AI hàng loạt cho 5 kênh, và
 > **[XOA_WATERMARK](README_WATERMARK.md)** gỡ logo / chữ chìm trên ảnh, video của bạn.
+>
+> Làm ảnh bằng **Flow** trên trình duyệt? Có bản tiện ích Chrome:
+> **[README_CHROME.md](README_CHROME.md)** — bật nút gạt rồi tải dự án như thường.
 
 # TAO_VOICE — đọc kịch bản .txt thành WAV + SRT (Windows, CPU-only)
 

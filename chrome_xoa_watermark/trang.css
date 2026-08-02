@@ -1,0 +1,80 @@
+.xw-hop {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  width: 268px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #14161a;
+  color: #e8eaed;
+  font: 13px/1.45 "Segoe UI", Roboto, system-ui, sans-serif;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  border: 1px solid #2a2e35;
+}
+
+.xw-hop .xw-hang {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.xw-hop .xw-ten {
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+.xw-hop .xw-gat {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  border: none;
+  background: #3c4043;
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s ease;
+  flex: 0 0 auto;
+}
+
+.xw-hop .xw-gat span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .15s ease;
+}
+
+.xw-hop.xw-dang-bat .xw-gat { background: #34a853; }
+.xw-hop.xw-dang-bat .xw-gat span { transform: translateX(18px); }
+
+.xw-hop .xw-trang-thai {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9aa0a6;
+  word-break: break-word;
+}
+
+.xw-hop .xw-trang-thai.xw-xanh { color: #81c995; }
+.xw-hop .xw-trang-thai.xw-vang { color: #fdd663; }
+.xw-hop .xw-trang-thai.xw-do { color: #f28b82; }
+
+.xw-hop .xw-tien {
+  display: none;
+  margin-top: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: #2a2e35;
+  overflow: hidden;
+}
+
+.xw-hop .xw-thanh {
+  height: 100%;
+  width: 0;
+  background: #8ab4f8;
+  transition: width .2s ease;
+}

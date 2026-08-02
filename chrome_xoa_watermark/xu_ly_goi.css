@@ -1,0 +1,131 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+  max-width: 980px;
+  background: #14161a;
+  color: #e8eaed;
+  font: 14px/1.55 "Segoe UI", Roboto, system-ui, sans-serif;
+}
+
+h1 { font-size: 22px; margin: 0 0 6px; }
+h2 { font-size: 15px; margin: 0 0 12px; color: #9aa0a6; text-transform: uppercase;
+     letter-spacing: .5px; }
+header p { margin: 0 0 22px; color: #9aa0a6; max-width: 640px; }
+
+.tha {
+  border: 2px dashed #3c4043;
+  border-radius: 14px;
+  padding: 34px 20px;
+  text-align: center;
+  transition: border-color .15s ease, background .15s ease;
+}
+
+.tha.dang-keo { border-color: #8ab4f8; background: #1b2430; }
+.tha-chu { font-size: 16px; font-weight: 600; }
+.tha-phu { color: #9aa0a6; margin: 8px 0 12px; font-size: 12px; }
+
+.the {
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid #2a2e35;
+  border-radius: 12px;
+  background: #1a1d22;
+}
+
+.an { display: none !important; }
+
+.luoi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #9aa0a6;
+  margin-bottom: 5px;
+}
+
+select, input[type="text"], input[type="number"] {
+  width: 100%;
+  padding: 8px;
+  border-radius: 7px;
+  border: 1px solid #2a2e35;
+  background: #1e2126;
+  color: #e8eaed;
+  font: inherit;
+}
+
+input[type="text"] { margin-top: 6px; }
+
+.nut-chinh {
+  display: inline-block;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #8ab4f8;
+  color: #14161a;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.nut-chinh:hover { background: #a8c7fa; }
+
+.nut-phu {
+  padding: 10px 16px;
+  border: 1px solid #3c4043;
+  border-radius: 8px;
+  background: transparent;
+  color: #e8eaed;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hang-nut { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+.mota { color: #9aa0a6; margin: 0 0 14px; }
+
+.canh-canh {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.canh-canh figure { margin: 0; }
+.canh-canh figcaption { font-size: 12px; color: #9aa0a6; margin-bottom: 6px; }
+.canh-canh canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid #2a2e35;
+  background: #0d0f12;
+}
+
+.thanh-ngoai {
+  height: 8px;
+  border-radius: 4px;
+  background: #2a2e35;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.thanh { height: 100%; width: 0; background: #8ab4f8; transition: width .2s ease; }
+
+.loi {
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #241a1a;
+  border: 1px solid #4a2f2f;
+  color: #f28b82;
+  font: 12px/1.5 Consolas, "Courier New", monospace;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow: auto;
+}

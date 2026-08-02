@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>Xoá watermark</title>
+</head>
+<body>
+  <div class="dau">
+    <div>
+      <div class="ten">Xoá watermark</div>
+      <div class="phu">Flow / Gemini — xử lý ngay trong máy bạn</div>
+    </div>
+    <button id="gat" class="gat" type="button" aria-pressed="false"><span></span></button>
+  </div>
+
+  <div id="trangThai" class="trang-thai">Nút gạt đang tắt.</div>
+
+  <div class="khoi">
+    <label for="vung">Watermark nằm ở đâu</label>
+    <select id="vung">
+      <option value="tu-dong">Tự động dò (cần ≥ 3 ảnh cùng bộ)</option>
+      <option value="duoi-phai">Góc dưới bên phải</option>
+      <option value="duoi-trai">Góc dưới bên trái</option>
+      <option value="tren-phai">Góc trên bên phải</option>
+      <option value="tren-trai">Góc trên bên trái</option>
+      <option value="duoi">Cả dải dưới</option>
+      <option value="tren">Cả dải trên</option>
+      <option value="giua">Chính giữa</option>
+      <option value="tu-go">Tự gõ toạ độ…</option>
+    </select>
+    <input id="vungTuGo" class="an" type="text" placeholder="x,y,rộng,cao — vd 1520,980,380,80">
+  </div>
+
+  <div class="khoi">
+    <label for="locMau">Chỉ vá đúng nét chữ</label>
+    <select id="locMau">
+      <option value="tat">Vá cả ô (chắc ăn)</option>
+      <option value="sang">Chỉ nét sáng / trắng (đẹp hơn)</option>
+      <option value="toi">Chỉ nét tối / đen</option>
+    </select>
+  </div>
+
+  <div class="khoi">
+    <label for="cach">Cách xử lý</label>
+    <select id="cach">
+      <option value="va">Vá lại nền (mặc định)</option>
+      <option value="to">Tô màu nền</option>
+    </select>
+  </div>
+
+  <button id="moTrang" class="nut-chinh" type="button">Mở trang xử lý gói zip</button>
+  <div class="ghi-chu">
+    Đã tải dự án về rồi thì thả file zip vào trang đó — cách này lúc nào cũng chạy.
+  </div>
+
+  <details class="chan-doan">
+    <summary>Chẩn đoán (khi nút gạt không bắt được)</summary>
+    <label class="dong-chon">
+      <input id="chanDoan" type="checkbox"> Ghi lại các link tải mà tiện ích nhìn thấy
+    </label>
+    <div id="nhatKy" class="nhat-ky">Chưa ghi được gì.</div>
+    <button id="xoaNhatKy" class="nut-phu" type="button">Xoá nhật ký</button>
+  </details>
+
+  <script src="popup.js"></script>
+</body>
+</html>

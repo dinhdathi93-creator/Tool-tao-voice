@@ -1,0 +1,132 @@
+# Tiện ích Chrome — xoá watermark ảnh Flow / Gemini
+
+Bật nút gạt trong Flow, bấm **tải dự án** như bình thường, file zip tải về đã sạch
+watermark. Toàn bộ xử lý chạy **trong máy bạn** — không gửi ảnh đi đâu, không cần
+mạng, không cần Python.
+
+> Dùng cho ảnh **của chính bạn** — ảnh bạn tạo ra trong Flow bằng tài khoản của bạn.
+> Đừng dùng để gỡ watermark trên ảnh của người khác.
+>
+> Tiện ích chỉ xoá **logo nhìn thấy được**. Ảnh Google sinh ra còn có SynthID —
+> thứ watermark chìm nằm trong chính các điểm ảnh, mắt không thấy. Tiện ích này
+> không đụng tới nó và cũng không có cách nào gỡ. Nếu bạn đăng lên YouTube, phần
+> khai báo "nội dung tổng hợp" vẫn phải khai như thường.
+
+---
+
+## 1. Cài vào Chrome
+
+1. Tải cả thư mục `chrome_xoa_watermark/` về máy (nếu đã clone repo thì có sẵn).
+2. Mở Chrome → gõ `chrome://extensions` vào thanh địa chỉ → Enter.
+3. Bật **Chế độ dành cho nhà phát triển** (*Developer mode*) — công tắc góc trên bên phải.
+4. Bấm **Tải tiện ích đã giải nén** (*Load unpacked*) → chọn thư mục `chrome_xoa_watermark`.
+5. Xong. Ghim biểu tượng vào thanh công cụ cho dễ bấm.
+
+Chrome sẽ nhắc "tiện ích ở chế độ nhà phát triển" mỗi lần mở — bấm bỏ qua là được,
+đó là chuyện bình thường với tiện ích không cài từ Web Store.
+
+## 2. Dùng cách nào?
+
+Có 2 đường, dùng đường nào cũng ra kết quả như nhau.
+
+### Đường A — nút gạt trong Flow (nhanh nhất)
+
+1. Bấm biểu tượng tiện ích → gạt **Xoá watermark** sang bật.
+2. Vào `labs.google/flow`, làm việc như thường. Góc dưới bên phải hiện một ô nhỏ
+   báo tiện ích đang bật.
+3. Bấm **tải dự án**. Tiện ích chặn file lại, xoá watermark từng ảnh (có thanh tiến
+   độ), rồi trả lại đúng file zip đó cho bạn tải xuống.
+
+**Nếu Flow đổi cách tải file, đường này có thể không bắt được.** Lúc đó ô nhỏ sẽ báo
+lỗi và nhắc bạn chuyển sang đường B. Xem thêm mục 5.
+
+### Đường B — thả file zip vào (lúc nào cũng chạy)
+
+1. Tải dự án về như bình thường (giữ nguyên watermark).
+2. Bấm biểu tượng tiện ích → **Mở trang xử lý gói zip**.
+3. Kéo file `.zip` vừa tải vào trang đó (hoặc kéo thẳng nhiều file ảnh).
+4. Trang hiện **2 ảnh soi trước**: khung đỏ tool định vá, và kết quả thử trên 1 ảnh.
+   Nhìn ưng thì bấm **Xử lý toàn bộ và tải xuống**.
+
+Đường B khuyên dùng cho lô lớn: bạn soi trước 1 ảnh rồi mới chạy 200 ảnh, đỡ phải làm lại.
+
+## 3. Cài đặt
+
+| Mục | Nên chọn | Giải thích |
+|---|---|---|
+| **Watermark nằm ở đâu** | Tự động dò | So nhiều ảnh cùng bộ, chỗ nào ảnh nào cũng có nét sắc thì đó là logo. Cần ≥ 3 ảnh cùng kích thước, nền khác nhau |
+| | Góc dưới bên phải… | Chọn tay khi tự động dò không ra, hoặc gói ít ảnh |
+| | Gõ toạ độ `x,y,rộng,cao` | Khi bạn đã biết chính xác khung |
+| **Chỉ vá đúng nét chữ** | Vá cả ô | Chắc ăn, hợp với logo nhiều màu |
+| | Chỉ nét sáng / trắng | Đẹp hơn với watermark chữ trắng — nền trong ô giữ nguyên |
+| **Cách xử lý** | Vá lại nền | Lấy màu và hướng chuyển màu từ viền quanh vá vào |
+| | Tô màu nền | Nền đúng một màu thì cách này gọn hơn |
+| **Nở mặt nạ** | 2 | Tăng lên 3–4 nếu vá xong còn viền mờ quanh chỗ chữ |
+
+Cài đặt lưu lại, lần sau mở lên vẫn thế. Nút gạt và trang xử lý dùng chung một bộ cài đặt.
+
+## 4. Ảnh ra có mất chất lượng không?
+
+- **PNG → PNG**: không mất gì, mã hoá lại không mất mát.
+- **JPG → JPG**: phải mã hoá lại, mặc định chất lượng 95 — mắt thường không thấy khác,
+  nhưng đúng là đã qua một lần nén nữa.
+- Ảnh **không** bị đổi kích thước, tên file và cấu trúc thư mục trong zip giữ nguyên.
+- File không phải ảnh trong gói (`.txt`, `.json`, video…) được chép nguyên, không đụng tới.
+- Ảnh nào xử lý lỗi thì **giữ nguyên bản gốc** trong gói ra, và tên nó được liệt kê ở
+  cuối cho bạn biết.
+
+Zip ra ghi kiểu *store* (không nén lại) nên file có thể to hơn zip gốc một chút —
+ảnh PNG/JPG vốn đã nén rồi, nén thêm gần như không nhỏ đi mà lại chậm.
+
+## 5. Nút gạt không bắt được thì làm sao
+
+Trong popup có mục **Chẩn đoán**:
+
+1. Tích **Ghi lại các link tải mà tiện ích nhìn thấy**.
+2. Vào Flow bấm tải dự án một lần nữa (kể cả khi nó tải ra file còn watermark).
+3. Mở lại popup — phần nhật ký sẽ liệt kê những đường link/blob tiện ích nhìn thấy.
+
+Gửi tôi mấy dòng đó là biết Flow tải kiểu gì để sửa cho khớp. Trong lúc chờ thì
+cứ dùng đường B, kết quả y hệt.
+
+Vài trường hợp tiện ích **cố ý không chặn**: trang tự đặt `location.href` sang link
+tải, hoặc file tải qua một tab khác. Chặn mấy chỗ đó dễ làm hỏng thao tác khác của
+Flow nên tôi để nguyên.
+
+## 6. Cấu trúc thư mục
+
+```
+chrome_xoa_watermark\
+├─ manifest.json        ← khai báo tiện ích (MV3)
+├─ loi_xoa.js           ← lõi: dò vùng, tạo mặt nạ, vá nền
+├─ zip.js               ← đọc/ghi file zip (không thư viện ngoài)
+├─ anh.js               ← giải mã / mã hoá ảnh bằng canvas
+├─ xu_ly.js             ← đường ống: zip vào → ảnh sạch → zip ra
+├─ chan_trang.js        ← chạy trong trang Flow, chặn lúc tải file
+├─ trang.js / trang.css ← ô nút gạt hiện trong Flow
+├─ popup.html/js/css    ← bảng cài đặt khi bấm biểu tượng
+├─ xu_ly_goi.*          ← trang thả zip vào xử lý
+├─ nen.js               ← service worker
+└─ kiem_tra\            ← bài tự kiểm tra (xem mục 7)
+```
+
+## 7. Tự kiểm tra
+
+Cần [Node.js](https://nodejs.org/) để chạy:
+
+```
+node chrome_xoa_watermark/kiem_tra/tu_kiem_tra.js          # lõi xử lý + đọc/ghi zip
+node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chrome.js   # chạy thật trong Chromium
+```
+
+Bài thứ hai cần `npm i -D playwright` và tự dựng một gói zip 6 ảnh có watermark, nạp
+tiện ích vào Chromium, thả file vào trang xử lý, bấm nút, rồi **đo lại từng ảnh ra**:
+vùng watermark phải sạch, phần ngoài vùng phải giữ nguyên từng pixel, đủ số ảnh,
+file không phải ảnh còn nguyên.
+
+## 8. Liên quan
+
+Bản chạy trên máy (Windows, hàng loạt, có cả video) nằm ở
+**[README_WATERMARK.md](README_WATERMARK.md)** — cùng một thuật toán, kéo thả vào
+`XOA_WATERMARK.bat`. Dùng bản đó khi ảnh đã nằm sẵn trong ổ đĩa và bạn muốn xử lý
+cả nghìn ảnh mà không phải mở trình duyệt.

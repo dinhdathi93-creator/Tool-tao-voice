@@ -166,3 +166,9 @@ Tool-tao-voice\
 ├─ WM_XONG\            ← ảnh sạch xuất ra đây
 └─ logs\               ← log theo ngày
 ```
+
+## 10. Bản chạy trên trình duyệt
+
+Làm ảnh bằng **Flow** thì có bản tiện ích Chrome dùng chung thuật toán này:
+**[README_CHROME.md](README_CHROME.md)**. Bật nút gạt, bấm tải dự án như bình thường,
+file zip tải về đã sạch watermark — không cần Python, không cần đụng tới ổ đĩa.

@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Xoa watermark - Flow / Gemini",
+  "version": "1.0.0",
+  "description": "Xoa logo goc tren anh cua ban ngay trong trinh duyet. Bat nut gat roi tai du an nhu binh thuong, hoac tha file zip vao popup.",
+  "permissions": ["storage", "downloads"],
+  "host_permissions": [
+    "https://labs.google/*",
+    "https://*.google.com/*",
+    "https://*.googleusercontent.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Xoa watermark",
+    "default_icon": {
+      "16": "anh/bieu_tuong_16.png",
+      "48": "anh/bieu_tuong_48.png",
+      "128": "anh/bieu_tuong_128.png"
+    }
+  },
+  "icons": {
+    "16": "anh/bieu_tuong_16.png",
+    "48": "anh/bieu_tuong_48.png",
+    "128": "anh/bieu_tuong_128.png"
+  },
+  "background": {
+    "service_worker": "nen.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://labs.google/*"],
+      "js": ["chan_trang.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://labs.google/*"],
+      "js": ["loi_xoa.js", "zip.js", "anh.js", "xu_ly.js", "trang.js"],
+      "css": ["trang.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

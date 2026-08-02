@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="xu_ly_goi.css">
+  <title>Xoá watermark — xử lý gói</title>
+</head>
+<body>
+  <header>
+    <h1>Xoá watermark</h1>
+    <p>Thả file <b>.zip</b> tải từ Flow (hoặc chọn thẳng nhiều ảnh) vào đây. Mọi thứ chạy
+      trong máy bạn, không có gì được gửi đi đâu cả.</p>
+  </header>
+
+  <div id="tha" class="tha">
+    <div class="tha-chu">Kéo thả file vào đây</div>
+    <div class="tha-phu">hoặc</div>
+    <button id="chon" class="nut-chinh" type="button">Chọn file…</button>
+    <input id="file" type="file" accept=".zip,image/*" multiple hidden>
+  </div>
+
+  <section id="caiDat" class="the">
+    <h2>Cài đặt</h2>
+    <div class="luoi">
+      <div>
+        <label for="vung">Watermark nằm ở đâu</label>
+        <select id="vung">
+          <option value="tu-dong">Tự động dò (cần ≥ 3 ảnh cùng bộ)</option>
+          <option value="duoi-phai">Góc dưới bên phải</option>
+          <option value="duoi-trai">Góc dưới bên trái</option>
+          <option value="tren-phai">Góc trên bên phải</option>
+          <option value="tren-trai">Góc trên bên trái</option>
+          <option value="duoi">Cả dải dưới</option>
+          <option value="tren">Cả dải trên</option>
+          <option value="giua">Chính giữa</option>
+        </select>
+        <input id="vungTuGo" type="text" placeholder="hoặc gõ x,y,rộng,cao — vd 1520,980,380,80">
+      </div>
+      <div>
+        <label for="locMau">Chỉ vá đúng nét chữ</label>
+        <select id="locMau">
+          <option value="tat">Vá cả ô (chắc ăn)</option>
+          <option value="sang">Chỉ nét sáng / trắng (đẹp hơn)</option>
+          <option value="toi">Chỉ nét tối / đen</option>
+        </select>
+      </div>
+      <div>
+        <label for="cach">Cách xử lý</label>
+        <select id="cach">
+          <option value="va">Vá lại nền (mặc định)</option>
+          <option value="to">Tô màu nền</option>
+        </select>
+      </div>
+      <div>
+        <label for="noRong">Nở mặt nạ (pixel)</label>
+        <input id="noRong" type="number" min="0" max="12" value="2">
+      </div>
+    </div>
+  </section>
+
+  <section id="xemTruoc" class="the an">
+    <h2>Soi trước khi chạy</h2>
+    <p id="motaVung" class="mota"></p>
+    <div class="canh-canh">
+      <figure><figcaption>Vùng tool sẽ vá</figcaption><canvas id="canvasKhung"></canvas></figure>
+      <figure><figcaption>Thử vá 1 ảnh</figcaption><canvas id="canvasSach"></canvas></figure>
+    </div>
+    <div class="hang-nut">
+      <button id="chay" class="nut-chinh" type="button">Xử lý toàn bộ và tải xuống</button>
+      <button id="lamLai" class="nut-phu" type="button">Đổi cài đặt, soi lại</button>
+    </div>
+  </section>
+
+  <section id="tienDo" class="the an">
+    <h2>Đang xử lý</h2>
+    <div class="thanh-ngoai"><div id="thanh" class="thanh"></div></div>
+    <p id="chuTien" class="mota"></p>
+  </section>
+
+  <section id="ketQua" class="the an">
+    <h2>Xong</h2>
+    <p id="chuKetQua" class="mota"></p>
+    <div class="hang-nut">
+      <a id="taiVe" class="nut-chinh" download>Tải file xuống</a>
+      <button id="batDauLai" class="nut-phu" type="button">Làm gói khác</button>
+    </div>
+    <pre id="loiChiTiet" class="loi an"></pre>
+  </section>
+
+  <script src="loi_xoa.js"></script>
+  <script src="zip.js"></script>
+  <script src="anh.js"></script>
+  <script src="xu_ly.js"></script>
+  <script src="xu_ly_goi.js"></script>
+</body>
+</html>
