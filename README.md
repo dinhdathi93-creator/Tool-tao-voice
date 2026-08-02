@@ -1,8 +1,9 @@
-> Repo này có 2 tool:
+> Repo này có 3 tool:
 > Thích bấm nút hơn gõ lệnh? Xem **[GIAO DIỆN WEB](README_GIAODIEN.md)** — bấm đúp `GIAO_DIEN.bat`.
 >
-> **TAO_VOICE** (dưới đây) đọc kịch bản thành giọng nói, và
-> **[TAO_ANH](README_ANH.md)** tạo ảnh AI hàng loạt cho 5 kênh.
+> **TAO_VOICE** (dưới đây) đọc kịch bản thành giọng nói,
+> **[TAO_ANH](README_ANH.md)** tạo ảnh AI hàng loạt cho 5 kênh, và
+> **[XOA_WATERMARK](README_WATERMARK.md)** gỡ logo / chữ chìm trên ảnh, video của bạn.
 
 # TAO_VOICE — đọc kịch bản .txt thành WAV + SRT (Windows, CPU-only)
 

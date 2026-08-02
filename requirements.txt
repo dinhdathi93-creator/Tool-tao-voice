@@ -12,3 +12,8 @@ numpy>=2
 # --- tao_anh.py (tao anh AI hang loat) ---
 # Chi can Pillow. Phan goi API dung urllib san co cua Python.
 pillow>=10.0.0        # ep anh ve dung 1920x1080
+
+# --- xoa_watermark.py (xoa logo / chu chim tren anh, video) ---
+# Chi can numpy + pillow (deu da co o tren).
+# opencv KHONG bat buoc: co thi va lai net hon voi anh chup that.
+#   pip install opencv-python-headless

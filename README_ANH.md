@@ -1,3 +1,6 @@
+> Ảnh ra bị dán logo góc? Xem **[XOA_WATERMARK](README_WATERMARK.md)** — kéo thả ảnh vào
+> `XOA_WATERMARK.bat` là xong.
+
 # TAO_ANH — tạo ảnh AI hàng loạt cho 5 kênh (Windows, Python 3)
 
 Quét `PROMPT_CHO/`, mỗi file `.txt` là một danh sách prompt ảnh. Tiền tố tên file quyết

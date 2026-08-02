@@ -68,6 +68,7 @@ if errorlevel 1 (
 
 "%VPY%" tao_voice.py --tu-kiem-tra
 "%VPY%" tao_anh.py --tu-kiem-tra
+"%VPY%" xoa_watermark.py --tu-kiem-tra
 echo.
 echo ============================================================
 echo   CAI DAT XONG.
@@ -80,6 +81,10 @@ echo   TAO ANH (TAO_ANH.bat):
 echo     1. Mo config.json, dan API key Gemini vao gemini.api_keys
 echo     2. Sua thu_muc_ra cua tung kenh cho dung o dia cua ban
 echo     3. Bo file prompt .txt vao  PROMPT_CHO\  roi chay TAO_ANH.bat
+echo.
+echo   XOA WATERMARK (XOA_WATERMARK.bat):
+echo     Keo tha anh dinh logo vao file .bat do, chon vi tri watermark.
+echo     Anh sach ra  WM_XONG\ , anh goc van con nguyen.
 echo ============================================================
 echo.
 

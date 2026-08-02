@@ -1,0 +1,168 @@
+# XOA_WATERMARK — gỡ logo / chữ chìm trên ảnh và video của bạn
+
+Kéo thả ảnh (hoặc cả thư mục) vào `XOA_WATERMARK.bat`, chọn watermark nằm ở đâu, tool
+vá lại nền cho liền và xuất ảnh sạch ra `WM_XONG/`. **Ảnh gốc không bị đụng vào.**
+
+> Tool này dành cho ảnh **của chính bạn**: ảnh do Gemini / Pollinations sinh ra bị dán
+> logo góc, ảnh bạn tự chụp, ảnh bạn đã mua bản quyền. Đừng dùng nó để gỡ watermark
+> trên ảnh của người khác — đó là dấu bản quyền của họ.
+
+---
+
+## 1. Cài đặt
+
+Bấm đúp `CAI_DAT.bat` (cài chung với hai tool kia), hoặc chỉ cần:
+
+```
+pip install numpy pillow
+```
+
+**Không bắt buộc** nhưng nên có nếu bạn xử lý **ảnh chụp thật** (nền nhiều chi tiết):
+
+```
+pip install opencv-python-headless
+```
+
+Có OpenCV thì tool tự dùng thuật toán vá Telea, vá nền rối nét hơn. Không có thì dùng
+cách vá bằng `numpy` viết sẵn trong tool — với ảnh vector phẳng / nền chuyển màu
+(đúng kiểu ảnh stickman của kênh) thì gần như không thấy vết.
+
+Muốn xử lý **video** thì cần thêm `ffmpeg` trong PATH — https://ffmpeg.org/download.html
+
+## 2. Chạy
+
+**Cách dễ nhất:** kéo thả ảnh hoặc thư mục vào **`XOA_WATERMARK.bat`**. Nó hỏi 2 câu:
+
+1. Watermark nằm ở đâu (tự động dò / góc dưới phải / góc dưới trái / …)
+2. Watermark có phải chữ trắng mờ không (chọn `C` để chỉ vá đúng nét chữ, nền giữ nguyên)
+
+Bấm đúp mà không kéo thả gì = xử lý hết ảnh trong `WM_CHO/`.
+
+**Bằng dòng lệnh:**
+
+```
+python xoa_watermark.py                                   # chạy hết WM_CHO/, tự dò vùng
+python xoa_watermark.py anh.png --vung duoi-phai
+python xoa_watermark.py D:\KHO_ANH --vung 1520,980,380,80 --loc-mau sang
+python xoa_watermark.py anh.png --xem-thu                 # chỉ vẽ khung đỏ để soi
+python xoa_watermark.py --tu-kiem-tra                     # tự test, không cần ảnh thật
+```
+
+> **Chưa chắc khung đúng chỗ thì chạy `--xem-thu` trước.** Nó xuất
+> `<tên>_xem_truoc.png` có khung đỏ, mở lên soi, khớp rồi mới chạy thật. Đỡ phải xử lý
+> lại cả trăm ảnh.
+
+## 3. Chọn vùng — `--vung`
+
+| Giá trị | Nghĩa |
+|---|---|
+| `tu-dong` *(mặc định)* | Tự dò vị trí bằng cách so nhiều ảnh cùng bộ |
+| `duoi-phai` `duoi-trai` `tren-phai` `tren-trai` | Một góc ảnh (30% ngang × 14% dọc) |
+| `duoi` `tren` | Cả dải ngang trên/dưới |
+| `giua` | Watermark to nằm giữa ảnh |
+| `1520,980,380,80` | Toạ độ pixel: `x,y,rộng,cao` |
+| `78%,88%,21%,10%` | Cũng `x,y,rộng,cao` nhưng theo phần trăm |
+
+**Cách `tu-dong` hoạt động:** watermark là thứ **có mặt ở mọi ảnh trong bộ**, còn nền
+thì mỗi ảnh mỗi khác. Tool đo độ nét (Sobel) của từng ảnh rồi chồng lên nhau — chỗ nào
+ảnh nào cũng có nét sắc thì gần như chắc chắn là logo/chữ chìm.
+
+Vì vậy nó cần:
+
+- ít nhất **3 ảnh cùng kích thước**, và
+- các ảnh có **nền khác nhau** (toàn ảnh giống hệt nhau thì tool từ chối dò, vì không
+  tách nổi watermark ra khỏi nội dung — lúc đó bạn tự chỉ `--vung`).
+
+Dò xong nó in ra khung đã đo, ví dụ `Tu do vi tri watermark cho anh 1280x720: 685,625,270,90`.
+Khung đó dùng chung cho cả nhóm ảnh cùng kích thước, không dò lại từng ảnh.
+
+## 4. Chọn cách xử lý — `--cach`
+
+| Cách | Làm gì | Hợp với |
+|---|---|---|
+| `va` *(mặc định)* | Vá lại nền, lấy màu và hướng chuyển màu từ viền xung quanh | Hầu hết trường hợp, nhất là nền phẳng / vector / chuyển màu |
+| `to` | Tô đè một màu lấy từ viền vùng | Nền đúng một màu |
+| `cat` | Cắt bỏ hẳn dải có watermark (thêm `--giu-kich-thuoc` để phóng lại như cũ) | Watermark sát mép, cắt đi không tiếc |
+| `nhoe` | Vỡ pixel vùng đó | Nền quá rối, vá không nổi — **che** chứ không phải xoá |
+
+## 5. Chỉ vá đúng nét chữ — `--loc-mau`
+
+Mặc định tool vá **cả ô vuông** bạn khoanh. Nếu watermark là chữ trắng mảnh, làm vậy phí
+— cả phần nền tử tế trong ô cũng bị vá theo. Dùng `--loc-mau` để chỉ chọn đúng những
+pixel là watermark:
+
+```
+--loc-mau sang        # watermark trắng / sáng hơn nền  (hay gặp nhất)
+--loc-mau toi         # watermark đen / tối hơn nền
+--loc-mau #ff0000     # watermark đúng một màu, gõ mã màu vào
+--loc-mau tat         # vá cả ô (mặc định)
+```
+
+Kèm theo:
+
+- `--dung-sai` — rộng tay hơn khi so màu (mặc định 25 cho `sang`/`toi`, 60 cho mã màu)
+- `--no-rong` — phình mặt nạ thêm vài pixel để ăn hết viền mờ quanh chữ (mặc định 2,
+  chữ có bóng đổ thì để 3–4)
+
+> `sang` và `toi` **bỏ qua các mảng màu rực** (nền đỏ, lá cây xanh…) vì watermark kiểu
+> này gần như luôn trắng/xám/đen. Logo nhiều màu thì dùng `#RRGGBB`, hoặc cứ để `tat`.
+
+Lọc quá chặt (không bắt được pixel nào) hay quá rộng (ăn gần hết ô) thì tool tự quay về
+vá cả ô và báo một dòng cảnh báo, không im lặng làm hỏng ảnh.
+
+## 6. Video
+
+```
+python xoa_watermark.py clip.mp4 --vung 1520,980,380,80
+```
+
+Video dùng bộ lọc `delogo` của `ffmpeg` (tiếng giữ nguyên, chỉ mã hoá lại hình).
+**Video không tự dò vùng được** — phải chỉ rõ `--vung`. Cách nhanh: chụp một khung hình
+ra ảnh, chạy `--xem-thu` trên ảnh đó để canh khung, rồi lấy toạ độ đó chạy cho video.
+
+## 7. Toàn bộ tuỳ chọn
+
+| Tham số | Mặc định | Nghĩa |
+|---|---|---|
+| `--vung` | `tu-dong` | Vùng có watermark (mục 3) |
+| `--cach` | `va` | `va` / `to` / `cat` / `nhoe` (mục 4) |
+| `--loc-mau` | `tat` | `tat` / `sang` / `toi` / `#RRGGBB` (mục 5) |
+| `--dung-sai` | tự | Độ rộng tay khi lọc màu |
+| `--no-rong` | `2` | Phình mặt nạ thêm mấy pixel |
+| `--giu-kich-thuoc` | tắt | Với `--cach cat`: phóng lại đúng kích thước cũ |
+| `--ra <thư mục>` | `WM_XONG` | Thư mục kết quả |
+| `--hau-to <chữ>` | rỗng | Thêm đuôi vào tên file kết quả, ví dụ `_sach` |
+| `--ghi-de` | tắt | **Ghi đè thẳng lên file gốc** — không còn bản lưu |
+| `--lam-lai` | tắt | Làm lại cả những file đã có kết quả |
+| `--xem-thu` | tắt | Chỉ xuất ảnh có khung đỏ, không sửa gì |
+| `--chat-luong` | `95` | Chất lượng khi lưu JPG/WEBP |
+| `--khong-opencv` | tắt | Ép dùng cách vá numpy dù máy có OpenCV |
+| `--chi-tiet` | tắt | In thêm log gỡ rối |
+| `--tu-kiem-tra` | — | Tự test toàn bộ, không cần ảnh thật |
+
+Mã thoát: `0` = xong sạch, `1` = có file hỏng, `2` = tham số/đầu vào sai.
+
+## 8. Hỏng thì xem đâu
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| `khong thay net nao xuat hien o tat ca cac anh` | Watermark quá mờ hoặc mỗi ảnh một chỗ → tự chỉ `--vung` |
+| `cac anh gan nhu giong het nhau` | Bộ ảnh nền giống nhau, không tách được → tự chỉ `--vung` |
+| `vung tim duoc qua to (>35% anh)` | Ảnh có khung viền/nền chung lớn → tự chỉ `--vung` |
+| Vá xong còn vệt mờ | Tăng `--no-rong` lên 3–4, hoặc khoanh `--vung` rộng thêm chút |
+| Vá xong nhoè cả mảng nền đẹp | Dùng `--loc-mau sang` để chỉ vá nét chữ, hoặc khoanh vùng nhỏ lại |
+| Nền ảnh chụp thật vá bị bệt | Cài `opencv-python-headless` rồi chạy lại |
+| Video báo cần ffmpeg | Cài ffmpeg và thêm vào PATH |
+
+Log đầy đủ nằm trong `logs\xoa_watermark_<ngày>.log`.
+
+## 9. Cấu trúc thư mục
+
+```
+Tool-tao-voice\
+├─ XOA_WATERMARK.bat   ← kéo thả ảnh / bấm đúp để chạy
+├─ xoa_watermark.py    ← toàn bộ tool
+├─ WM_CHO\             ← bỏ ảnh dính watermark vào đây
+├─ WM_XONG\            ← ảnh sạch xuất ra đây
+└─ logs\               ← log theo ngày
+```

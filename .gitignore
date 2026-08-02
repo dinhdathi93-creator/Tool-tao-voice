@@ -33,3 +33,10 @@ PROMPT_XONG/*
 PROMPT_CHO/*
 !PROMPT_CHO/RUNGWORK_vi_du.txt
 !PROMPT_CHO/TERCO1_exemplo.txt
+
+# --- xoa_watermark ---
+WM_CHO/*
+!WM_CHO/.gitkeep
+WM_XONG/*
+!WM_XONG/.gitkeep
+.venv_test/
