@@ -10,6 +10,7 @@ Ba thu tieng: English, Portugues (Brasil), Espanol. Clone giong tu file mau.
 
 from __future__ import annotations
 
+import gc
 import io
 import json
 import threading
@@ -154,7 +155,14 @@ def chay_cong_viec(viec: CongViec, van_ban: str, tuy_chon: dict) -> None:
 
         viec.cau_dang_doc = "Dang lam sach va can am luong..."
         toan_bo = tv.ghep_cac_doan(doan, cac_am, sample_rate)
-        toan_bo = tv.xu_ly_hau_ky(toan_bo, sample_rate, cfg.hau_ky)
+        del cac_am[:]
+        gc.collect()
+        try:
+            toan_bo = tv.xu_ly_hau_ky(toan_bo, sample_rate, cfg.hau_ky)
+        except MemoryError:
+            gc.collect()
+            viec.cau_dang_doc = "May het RAM -> giu ban chua hau ky..."
+            toan_bo = tv.chuan_bien_do(toan_bo, -1.5)
         THU_MUC_RA_WEB.mkdir(parents=True, exist_ok=True)
         ten_goc = f"{time.strftime('%Y%m%d_%H%M%S')}_{cfg.ten}"
         wav = THU_MUC_RA_WEB / f"{ten_goc}.wav"

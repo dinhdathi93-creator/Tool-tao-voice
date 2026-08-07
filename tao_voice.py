@@ -26,6 +26,7 @@ Quy uoc trong file kich ban (.txt):
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import logging
 import os
@@ -804,6 +805,64 @@ def _np():
     return np
 
 
+# Kich ban dai 30-60 phut cho ra mang am thanh 40-90 trieu mau. Neu xu ly ca
+# mang mot luc, moi phep tinh trung gian doi them vai tram MB va may 8 GB RAM
+# se dung giua chung ("Unable to allocate ... MiB"). Vi vay moi khau hau ky
+# deu chay theo tung khoi ~44 giay, RAM dung chi bang mot khoi chu khong bang
+# ca file. Ket qua nghe giong het cach cu.
+_KHOI_XU_LY = 1 << 20          # 1.048.576 mau ~ 44 giay o 24 kHz
+_KHUNG_PHO = 1024              # nperseg cho STFT
+_CHONG_PHO = 512               # noverlap cho STFT
+
+
+def _dinh_lon_nhat(am) -> float:
+    """Bien do lon nhat, tinh theo khoi de khong tao ban sao ca file."""
+    np = _np()
+    dinh = 0.0
+    for i in range(0, am.size, _KHOI_XU_LY):
+        khoi = am[i : i + _KHOI_XU_LY]
+        if khoi.size:
+            dinh = max(dinh, float(np.max(np.abs(khoi))))
+    return dinh
+
+
+def _binh_phuong_tb(am) -> float:
+    """Trung binh binh phuong, cong don theo khoi trong float64."""
+    np = _np()
+    if am.size == 0:
+        return 0.0
+    tong = 0.0
+    for i in range(0, am.size, _KHOI_XU_LY):
+        khoi = am[i : i + _KHOI_XU_LY].astype(np.float64)
+        tong += float(np.dot(khoi, khoi))
+    return tong / am.size
+
+
+def _ap_do_loi(am, giam_db_thua):
+    """Nhan am voi duong bao GIAM (don vi dB, luu o toc do thua _BUOC_BAO).
+
+    Noi suy va nhan theo tung khoi -> khong bao gio dung mang float64 ca file.
+    """
+    np = _np()
+    ra = np.empty(am.size, dtype=np.float32)
+    if giam_db_thua.size < 2:
+        mot = float(giam_db_thua[0]) if giam_db_thua.size else 0.0
+        he_so = np.float32(10.0 ** (-mot / 20.0))
+        for i in range(0, am.size, _KHOI_XU_LY):
+            n = min(_KHOI_XU_LY, am.size - i)
+            np.multiply(am[i : i + n], he_so, out=ra[i : i + n], casting="unsafe")
+        return ra
+
+    moc = np.arange(giam_db_thua.size, dtype=np.float64) * _BUOC_BAO
+    for i in range(0, am.size, _KHOI_XU_LY):
+        n = min(_KHOI_XU_LY, am.size - i)
+        db = np.interp(np.arange(i, i + n, dtype=np.float64), moc, giam_db_thua)
+        db *= -1.0 / 20.0
+        np.power(10.0, db, out=db)
+        ra[i : i + n] = am[i : i + n] * db
+    return ra
+
+
 def cat_lang(am: "object", sample_rate: int, nguong_db: float = -42.0, le: float = 0.04):
     """Cat bot khoang lang o dau/cuoi doan de tu minh kiem soat do dai nghi."""
     np = _np()
@@ -911,10 +970,15 @@ def doi_cao_do(am: "object", sample_rate: int, nua_cung: float):
 
 def chuan_bien_do(am: "object", dinh_db: float = -1.0):
     np = _np()
-    dinh = float(np.max(np.abs(am))) if am.size else 0.0
+    dinh = _dinh_lon_nhat(am)
     if dinh < 1e-6:
         return am
-    return am * (10.0 ** (dinh_db / 20.0) / dinh)
+    he_so = np.float32(10.0 ** (dinh_db / 20.0) / dinh)
+    ra = np.empty(am.size, dtype=np.float32)
+    for i in range(0, am.size, _KHOI_XU_LY):
+        n = min(_KHOI_XU_LY, am.size - i)
+        np.multiply(am[i : i + n], he_so, out=ra[i : i + n], casting="unsafe")
+    return ra
 
 
 # ---------------------------------------------------------------------------
@@ -983,42 +1047,115 @@ def _bq_dinh(sr: int, f0: float, do_loi_db: float, Q: float):
 
 
 def _loc(am, cac_sos):
+    """Loc IIR chay theo khoi, mang theo trang thai zi giua cac khoi.
+
+    Ket qua trung khop tung mau voi cach loc mot lan ca file, nhung dinh RAM
+    chi bang mot khoi thay vi ba ban sao float64 cua ca file.
+    """
     from scipy.signal import sosfilt
 
     np = _np()
-    return sosfilt(np.array(cac_sos), am.astype(np.float64)).astype(np.float32)
+    sos = np.asarray(cac_sos, dtype=np.float64)
+    if am.size == 0:
+        return am.astype(np.float32)
+    ra = np.empty(am.size, dtype=np.float32)
+    zi = np.zeros((sos.shape[0], 2), dtype=np.float64)
+    for i in range(0, am.size, _KHOI_XU_LY):
+        khoi = am[i : i + _KHOI_XU_LY].astype(np.float64)
+        y, zi = sosfilt(sos, khoi, zi=zi)
+        ra[i : i + khoi.size] = y
+    return ra
 
 
 def do_lufs(am: "object", sample_rate: int) -> float:
     """Do do to theo chuan phat thanh ITU-R BS.1770 (K-weighting)."""
+    from scipy.signal import sosfilt
+
     np = _np()
     if am.size < sample_rate // 10:
         return -70.0
-    k = _loc(am, [_bq_ke_cao(sample_rate, 1681.97, 3.999, 0.7071),
-                  _bq_thong_cao(sample_rate, 38.13, 0.5003)])
-    ms = float(np.mean(k.astype(np.float64) ** 2))
-    return -0.691 + 10 * np.log10(ms + 1e-12)
+    sos = np.asarray([_bq_ke_cao(sample_rate, 1681.97, 3.999, 0.7071),
+                      _bq_thong_cao(sample_rate, 38.13, 0.5003)], dtype=np.float64)
+    zi = np.zeros((sos.shape[0], 2), dtype=np.float64)
+    tong = 0.0
+    for i in range(0, am.size, _KHOI_XU_LY):
+        khoi = am[i : i + _KHOI_XU_LY].astype(np.float64)
+        y, zi = sosfilt(sos, khoi, zi=zi)
+        tong += float(np.dot(y, y))
+    return -0.691 + 10 * np.log10(tong / am.size + 1e-12)
+
+
+def _nen_on(am, sample_rate: int):
+    """Uoc luong pho nen on bang cach lay mau vai doan rai deu ca file.
+
+    Truoc day ham nay lam STFT ca file mot luc: kich ban 30 phut cho ra mang
+    phuc 513 x 80.000 = hon 600 MB, chua ke ban sao trung gian -> het RAM.
+    Lay 8 doan 20 giay rai deu cho ra ket qua gan nhu y het ma chi ton ~15 MB.
+    """
+    from scipy.signal import stft
+
+    np = _np()
+    dai = 20 * sample_rate
+    so_mau = 8
+    if am.size <= dai * so_mau:
+        vi_tri = [0]
+        dai = am.size
+    else:
+        buoc = (am.size - dai) // (so_mau - 1)
+        vi_tri = [i * buoc for i in range(so_mau)]
+
+    gom = []
+    for v in vi_tri:
+        doan = am[v : v + dai]
+        if doan.size < _KHUNG_PHO:
+            continue
+        _, _, Z = stft(doan.astype(np.float32), fs=sample_rate,
+                       nperseg=_KHUNG_PHO, noverlap=_CHONG_PHO)
+        gom.append(np.abs(Z).astype(np.float32))
+    if not gom:
+        return None
+    bien = gom[0] if len(gom) == 1 else np.concatenate(gom, axis=1)
+    # nen on = muc thap nhat cua tung dai tan so (lay 10% khung im nhat)
+    return np.percentile(bien, 10, axis=1, keepdims=True).astype(np.float32)
 
 
 def giam_tap_am(am: "object", sample_rate: int, muc_db: float = 9.0):
     """Ha nen on/hiss bang cach tru pho, do nen on tu nhung khung im nhat."""
+    from scipy.ndimage import uniform_filter1d
     from scipy.signal import istft, stft
 
     np = _np()
     if am.size < sample_rate // 4:
         return am
-    from scipy.ndimage import uniform_filter1d
+    nen = _nen_on(am, sample_rate)
+    if nen is None:
+        return am
 
-    f, t, Z = stft(am.astype(np.float64), fs=sample_rate, nperseg=1024, noverlap=512)
-    bien = np.abs(Z)
-    # nen on = muc thap nhat cua tung dai tan so (lay 10% khung im nhat)
-    nen = np.percentile(bien, 10, axis=1, keepdims=True)
-    toi_da = 10 ** (-abs(muc_db) / 20)          # khong ha qua muc nay
-    he_so = np.clip((bien - 1.5 * nen) / (bien + 1e-9), toi_da, 1.0)
-    # lam muot theo thoi gian cho khoi "loc xoc" (vectorise, khong lap Python)
-    he_so = uniform_filter1d(he_so, size=3, axis=1, mode="nearest")
-    _, ra = istft(Z * he_so, fs=sample_rate, nperseg=1024, noverlap=512)
-    return ra[: am.size].astype(np.float32)
+    toi_da = np.float32(10 ** (-abs(muc_db) / 20))   # khong ha qua muc nay
+    dem = _KHUNG_PHO * 8                             # dem hai ben cho khoi tach khoi
+    ra = np.empty(am.size, dtype=np.float32)
+    for i in range(0, am.size, _KHOI_XU_LY):
+        n = min(_KHOI_XU_LY, am.size - i)
+        d0 = max(0, i - dem)
+        d1 = min(am.size, i + n + dem)
+        doan = am[d0:d1].astype(np.float32)
+        if doan.size < _KHUNG_PHO:
+            ra[i : i + n] = am[i : i + n]
+            continue
+
+        _, _, Z = stft(doan, fs=sample_rate, nperseg=_KHUNG_PHO, noverlap=_CHONG_PHO)
+        bien = np.abs(Z)
+        he_so = np.clip((bien - 1.5 * nen) / (bien + 1e-9), toi_da, 1.0)
+        # lam muot theo thoi gian cho khoi "loc xoc" (vectorise, khong lap Python)
+        he_so = uniform_filter1d(he_so, size=3, axis=1, mode="nearest")
+        Z *= he_so
+        _, y = istft(Z, fs=sample_rate, nperseg=_KHUNG_PHO, noverlap=_CHONG_PHO)
+
+        lay = i - d0
+        if y.size < lay + n:
+            y = np.pad(y, (0, lay + n - y.size))
+        ra[i : i + n] = y[lay : lay + n]
+    return ra
 
 
 def giam_xit(am: "object", sample_rate: int, nguong_db: float = -26.0, giam_toi_da: float = 6.0):
@@ -1026,20 +1163,25 @@ def giam_xit(am: "object", sample_rate: int, nguong_db: float = -26.0, giam_toi_
     from scipy.signal import butter, sosfilt
 
     np = _np()
-    cao = min(0.99, 9000 / (sample_rate / 2))
-    thap = min(cao * 0.9, 5000 / (sample_rate / 2))
-    sos = butter(2, [thap, cao], btype="band", output="sos")
-    dai = sosfilt(sos, am.astype(np.float64))
-
     from scipy.ndimage import uniform_filter1d
 
+    cao = min(0.99, 9000 / (sample_rate / 2))
+    thap = min(cao * 0.9, 5000 / (sample_rate / 2))
+    sos = np.asarray(butter(2, [thap, cao], btype="band", output="sos"), dtype=np.float64)
     cua = max(1, int(sample_rate * 0.005))
-    bao = uniform_filter1d(np.abs(dai), size=cua, mode="nearest")
-    bao_db = 20 * np.log10(bao + 1e-9)
-    vuot = np.maximum(0.0, bao_db - nguong_db)
-    ha_db = np.minimum(vuot * 0.6, giam_toi_da)
-    he_so = 10 ** (-ha_db / 20)
-    return (am - dai * (1 - he_so)).astype(np.float32)
+
+    ra = np.empty(am.size, dtype=np.float32)
+    zi = np.zeros((sos.shape[0], 2), dtype=np.float64)
+    for i in range(0, am.size, _KHOI_XU_LY):
+        goc = am[i : i + _KHOI_XU_LY]
+        dai, zi = sosfilt(sos, goc.astype(np.float64), zi=zi)
+        bao = uniform_filter1d(np.abs(dai), size=cua, mode="nearest")
+        bao_db = 20 * np.log10(bao + 1e-9)
+        vuot = np.maximum(0.0, bao_db - nguong_db)
+        ha_db = np.minimum(vuot * 0.6, giam_toi_da)
+        he_so = 10 ** (-ha_db / 20)
+        ra[i : i + goc.size] = goc - dai * (1 - he_so)
+    return ra
 
 
 _BUOC_BAO = 32  # tinh duong bao thua ra roi noi suy: nhanh gap 32 lan, tai nghe khong phan biet
@@ -1060,13 +1202,6 @@ def _muot_tan_cong_nha(v, sample_rate: int, tan_cong_ms: float, nha_ms: float):
     return ra
 
 
-def _giai_ra(v_thua, n: int):
-    np = _np()
-    if v_thua.size < 2:
-        return np.full(n, float(v_thua[0]) if v_thua.size else 0.0)
-    return np.interp(np.arange(n), np.arange(v_thua.size) * _BUOC_BAO, v_thua)
-
-
 def nen_dong(am: "object", sample_rate: int, nguong_db: float = -22.0, ty_le: float = 2.5,
              tan_cong_ms: float = 10.0, nha_ms: float = 150.0):
     """Nen dai dong: cau to cau nho deu nhau hon, nghe 'da qua phong thu'."""
@@ -1076,12 +1211,20 @@ def nen_dong(am: "object", sample_rate: int, nguong_db: float = -22.0, ty_le: fl
     from scipy.ndimage import uniform_filter1d
 
     cua = max(1, int(sample_rate * 0.003))
-    binh_phuong = uniform_filter1d(am.astype(np.float64) ** 2, size=cua, mode="nearest")
-    bao = np.sqrt(np.maximum(binh_phuong, 0.0)) + 1e-9
-    ha_db = np.maximum(0.0, 20 * np.log10(bao) - nguong_db) * (1 - 1 / ty_le)
+    # Chi giu duong bao o toc do thua (1/32) -> mang nho hon 32 lan.
+    ha_thua = np.empty((am.size + _BUOC_BAO - 1) // _BUOC_BAO, dtype=np.float64)
+    buoc = _KHOI_XU_LY - (_KHOI_XU_LY % _BUOC_BAO)
+    for i in range(0, am.size, buoc):
+        khoi = am[i : i + buoc].astype(np.float64)
+        khoi *= khoi
+        bao = np.sqrt(np.maximum(uniform_filter1d(khoi, size=cua, mode="nearest"), 0.0)) + 1e-9
+        ha_db = np.maximum(0.0, 20 * np.log10(bao) - nguong_db) * (1 - 1 / ty_le)
+        lay = ha_db[::_BUOC_BAO]
+        j = i // _BUOC_BAO
+        ha_thua[j : j + lay.size] = lay
 
-    muot = _muot_tan_cong_nha(ha_db[::_BUOC_BAO], sample_rate, tan_cong_ms, nha_ms)
-    return (am * (10 ** (-_giai_ra(muot, am.size) / 20))).astype(np.float32)
+    muot = _muot_tan_cong_nha(ha_thua, sample_rate, tan_cong_ms, nha_ms)
+    return _ap_do_loi(am, muot)
 
 
 def gioi_han_dinh(am: "object", sample_rate: int, tran_db: float = -1.5,
@@ -1094,17 +1237,28 @@ def gioi_han_dinh(am: "object", sample_rate: int, tran_db: float = -1.5,
 
     np = _np()
     tran = 10 ** (tran_db / 20)
-    dinh = float(np.max(np.abs(am))) if am.size else 0.0
+    dinh = _dinh_lon_nhat(am)
     if dinh <= tran or am.size < sample_rate // 100:
         return am
 
     n_nhin = max(1, int(sample_rate * nhin_truoc_ms / 1000))
-    bao = maximum_filter1d(np.abs(am).astype(np.float64), size=2 * n_nhin + 1)
-    ha_db = np.maximum(0.0, 20 * np.log10((bao + 1e-9) / tran))
+    ha_thua = np.empty((am.size + _BUOC_BAO - 1) // _BUOC_BAO, dtype=np.float64)
+    buoc = _KHOI_XU_LY - (_KHOI_XU_LY % _BUOC_BAO)
+    dem = n_nhin + _BUOC_BAO
+    for i in range(0, am.size, buoc):
+        n = min(buoc, am.size - i)
+        d0 = max(0, i - dem)
+        d1 = min(am.size, i + n + dem)
+        bao = maximum_filter1d(np.abs(am[d0:d1]).astype(np.float64), size=2 * n_nhin + 1)
+        ha_db = np.maximum(0.0, 20 * np.log10((bao + 1e-9) / tran))
+        lay = ha_db[i - d0 : i - d0 + n : _BUOC_BAO]
+        j = i // _BUOC_BAO
+        ha_thua[j : j + lay.size] = lay
 
-    muot = _muot_tan_cong_nha(ha_db[::_BUOC_BAO], sample_rate, 0.5, nha_ms)
-    ra = am * (10 ** (-_giai_ra(muot, am.size) / 20))
-    return np.clip(ra, -tran, tran).astype(np.float32)
+    muot = _muot_tan_cong_nha(ha_thua, sample_rate, 0.5, nha_ms)
+    ra = _ap_do_loi(am, muot)
+    np.clip(ra, -tran, tran, out=ra)
+    return ra
 
 
 def can_muc_cac_doan(cac_am: list, gioi_han_db: float = 4.0) -> list:
@@ -1112,13 +1266,17 @@ def can_muc_cac_doan(cac_am: list, gioi_han_db: float = 4.0) -> list:
     np = _np()
     if len(cac_am) < 2:
         return cac_am
-    rms = np.array([float(np.sqrt(np.mean(a.astype(np.float64) ** 2)) + 1e-9) for a in cac_am])
+    rms = np.array([_binh_phuong_tb(a) ** 0.5 + 1e-9 for a in cac_am])
     dich = float(np.median(rms))
-    ra = []
-    for a, r in zip(cac_am, rms):
+    for i, r in enumerate(rms):
         db = float(np.clip(20 * np.log10(dich / r), -gioi_han_db, gioi_han_db))
-        ra.append((a * (10 ** (db / 20))).astype(np.float32))
-    return ra
+        he_so = np.float32(10 ** (db / 20))
+        a = cac_am[i]
+        if a.dtype == np.float32 and a.flags.writeable and a.flags.owndata:
+            a *= he_so          # nhan tai cho: khong nhan doi RAM cua ca hang doi
+        else:
+            cac_am[i] = (a * he_so).astype(np.float32)
+    return cac_am
 
 
 MUC_HAU_KY = ("tat", "nhe", "chuan", "manh")
@@ -1137,7 +1295,8 @@ def xu_ly_hau_ky(am: "object", sample_rate: int, muc: str = "chuan",
     if muc == "tat" or am.size < sample_rate // 10:
         return chuan_bien_do(am, tran_db)
 
-    am = am - float(np.mean(am))                       # bo lech DC
+    am = np.subtract(am, np.float32(np.mean(am, dtype=np.float64)),
+                     dtype=np.float32)                 # bo lech DC
     # Loc thong cao bac 4 (Butterworth) tai 80 Hz: giong nguoi khong co gi duoi day,
     # chi co u nen, tieng gio, rung ban - cat han cho tieng "sach".
     am = _loc(am, [_bq_thong_cao(sample_rate, 80.0, 0.5412),
@@ -1169,47 +1328,63 @@ def xu_ly_hau_ky(am: "object", sample_rate: int, muc: str = "chuan",
         thieu = lufs_dich - do_to
         if abs(thieu) < 0.3:
             break
-        am = am * (10 ** (thieu / 20))
+        am *= np.float32(10 ** (thieu / 20))    # am da la mang rieng -> sua tai cho
         am = gioi_han_dinh(am, sample_rate, tran_db)
     am = gioi_han_dinh(am, sample_rate, tran_db)
-    return np.clip(np.nan_to_num(am, nan=0.0, posinf=0.0, neginf=0.0), -1.0, 1.0).astype(np.float32)
+    am = np.nan_to_num(am, copy=False, nan=0.0, posinf=0.0, neginf=0.0)
+    np.clip(am, -1.0, 1.0, out=am)
+    return am
 
 
 def ghep_cac_doan(doan: list, cac_am: list, sample_rate: int, can_muc: bool = True):
-    """Can muc cac cau, chen khoang lang, va dien moc thoi gian vao tung cau."""
+    """Can muc cac cau, chen khoang lang, va dien moc thoi gian vao tung cau.
+
+    Luu y: ham nay LAM RONG danh sach cac_am trong khi ghep. Cach cu dung
+    np.concatenate nen phai giu ca hang doi va ban ghep cung luc (gap doi RAM);
+    gio cap phat san mang dich roi tha tung cau ngay sau khi chep vao.
+    """
     np = _np()
     if can_muc:
         cac_am = can_muc_cac_doan(cac_am)
 
-    manh = []
     tong = 0
     for mot_doan, am in zip(doan, cac_am):
         mot_doan.bat_dau = tong
         tong += am.size
         mot_doan.ket_thuc = tong
-        manh.append(am)
-        n = int(mot_doan.nghi_sau * sample_rate)
-        if n > 0:
-            manh.append(np.zeros(n, dtype=np.float32))
-            tong += n
-    return np.concatenate(manh).astype(np.float32) if manh else np.zeros(0, dtype=np.float32)
+        tong += max(0, int(mot_doan.nghi_sau * sample_rate))
+    if tong <= 0:
+        return np.zeros(0, dtype=np.float32)
+
+    ra = np.zeros(tong, dtype=np.float32)     # cho nghi = san im lang
+    for i, mot_doan in enumerate(doan):
+        if i >= len(cac_am):
+            break
+        ra[mot_doan.bat_dau : mot_doan.ket_thuc] = cac_am[i]
+        cac_am[i] = None                      # tra RAM ngay
+    return ra
 
 
 def ghi_wav(duong_dan: Path, am: "object", sample_rate: int) -> None:
     """Ghi WAV mono 16-bit PCM (dinh dang an toan nhat cho moi phan mem dung)."""
     np = _np()
-    so_hong = int(np.count_nonzero(~np.isfinite(am)))
-    if so_hong:
-        log.error("Co %d mau am thanh khong hop le (NaN/inf) -> thay bang im lang.", so_hong)
-        am = np.nan_to_num(am, nan=0.0, posinf=0.0, neginf=0.0)
-    du_lieu = np.clip(am, -1.0, 1.0)
-    pcm = (du_lieu * 32767.0).astype("<i2")
     duong_dan.parent.mkdir(parents=True, exist_ok=True)
+    so_hong = 0
     with wave.open(str(duong_dan), "wb") as f:
         f.setnchannels(1)
         f.setsampwidth(2)
         f.setframerate(sample_rate)
-        f.writeframes(pcm.tobytes())
+        # Ghi theo khoi: khong tao them ban float32 + ban int16 + ban bytes
+        # cua ca file cung mot luc.
+        for i in range(0, am.size, _KHOI_XU_LY):
+            khoi = am[i : i + _KHOI_XU_LY]
+            hong = int(np.count_nonzero(~np.isfinite(khoi)))
+            if hong:
+                so_hong += hong
+                khoi = np.nan_to_num(khoi, nan=0.0, posinf=0.0, neginf=0.0)
+            f.writeframes((np.clip(khoi, -1.0, 1.0) * 32767.0).astype("<i2").tobytes())
+    if so_hong:
+        log.error("Co %d mau am thanh khong hop le (NaN/inf) -> da thay bang im lang.", so_hong)
 
 
 # ---------------------------------------------------------------------------
@@ -1997,13 +2172,29 @@ def xu_ly_mot_file(
         return KetQua(duong_dan, False, "khong sinh duoc am thanh")
 
     toan_bo = ghep_cac_doan(doan_co_am, cac_am, sample_rate)
+    del cac_am[:]                       # hang doi cau da chep xong -> tra RAM
+    gc.collect()
+
     muc_hau_ky = cfg.hau_ky if tuy_chon.chuan_am_luong else "tat"
     log.info("HAU KY   : %s", muc_hau_ky)
-    toan_bo = xu_ly_hau_ky(toan_bo, sample_rate, muc_hau_ky)
+    try:
+        toan_bo = xu_ly_hau_ky(toan_bo, sample_rate, muc_hau_ky)
+    except MemoryError:
+        # Da doc xong ca kich ban roi, khong duoc phep vut di vi thieu RAM.
+        gc.collect()
+        log.error("HET RAM khi hau ky -> ghi ban CHUA hau ky de giu lai cong doc.")
+        log.error("  Cach khac: dat \"hau_ky\": \"nhe\" cho kenh nay trong channels.json,")
+        log.error("  hoac cat kich ban thanh 2-3 file ngan hon roi chay lai.")
+        try:
+            toan_bo = chuan_bien_do(toan_bo, -1.5)
+        except MemoryError:
+            log.error("  Van thieu RAM -> ghi nguyen ban tho.")
 
     ghi_wav(file_wav, toan_bo, sample_rate)
     tong_giay = toan_bo.size / sample_rate
     log.info("WAV      : %s (%.1f giay)", file_wav.name, tong_giay)
+    del toan_bo                         # tra RAM truoc khi nap whisper cho SRT
+    gc.collect()
 
     duong_dan_srt = None
     if not tuy_chon.khong_srt:
@@ -2236,6 +2427,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     log.info("%s v%s  |  pocket-tts + faster-whisper  |  CPU-only", APP_NAME, APP_VERSION)
     log.info("Log: %s", file_log)
     log.info("Model tai ve: %s", os.environ["HF_HOME"])
+    if sys.maxsize <= 2 ** 32:
+        log.error("Ban dang chay Python 32-bit: khong bao gio dung qua ~2 GB RAM.")
+        log.error("Kich ban dai se bao 'Unable to allocate'. Hay go va cai lai "
+                  "Python 64-bit (ban 'Windows installer 64-bit').")
 
     if tuy_chon.hf_token:
         return luu_hf_token(tuy_chon.hf_token)
@@ -2300,9 +2495,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         except KeyboardInterrupt:
             log.warning("Nguoi dung dung giua chung. Cac file da xong van con trong XONG/.")
             break
+        except MemoryError:
+            gc.collect()
+            log.error("HET RAM khi xu ly %s.", duong_dan.name)
+            log.error("  Dong bot Chrome/app khac, hoac cat kich ban nay thanh 2-3 file ngan hon.")
+            ket_qua.append(KetQua(duong_dan, False, "het RAM"))
         except Exception as loi:  # mot file hong khong duoc lam chet ca hang doi
             log.exception("LOI khi xu ly %s: %s", duong_dan.name, loi)
             ket_qua.append(KetQua(duong_dan, False, str(loi)))
+        gc.collect()               # tra RAM truoc khi vao file tiep theo
 
     log.info("")
     log.info("=" * 68)

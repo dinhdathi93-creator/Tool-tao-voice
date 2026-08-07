@@ -257,6 +257,32 @@ Muốn nhanh hơn:
 RAM: mỗi model ~0.5 GB. Chạy 2 kênh khác ngôn ngữ trong cùng một lần thì cả hai
 cùng nằm trong RAM.
 
+### Kịch bản dài (30–60 phút)
+
+Toàn bộ khâu hậu kỳ chạy theo từng khối ~44 giây thay vì nạp cả file vào RAM một
+lúc. Đo trên bản ghi 30 phút:
+
+| | Đỉnh RAM | Thời gian |
+|---|---|---|
+| Bản cũ | 4,32 GB | 55 s |
+| Bản hiện tại | 439 MB | 28 s |
+
+Chất lượng không đổi: các khâu lọc, de-esser, limiter cho ra kết quả **trùng khít
+từng mẫu** với cách cũ; hai khâu còn lại lệch −85 dB và −77 dB, tức thấp hơn tiếng
+nền cả trăm lần, tai không nghe được. Vẫn đúng −16 LUFS, đỉnh −1.5 dBFS.
+
+Nếu vẫn gặp `Unable to allocate ... MiB`:
+
+- Kiểm tra dòng đầu log — nếu báo **Python 32-bit** thì phải cài lại Python 64-bit,
+  vì bản 32-bit không bao giờ dùng quá ~2 GB RAM dù máy có bao nhiêu.
+- Đóng bớt Chrome và các app nặng.
+- Đặt `"hau_ky": "nhe"` cho kênh đó trong `channels.json` (bỏ qua khâu khử tạp âm,
+  vốn tốn RAM nhất).
+- Cắt kịch bản thành 2–3 file ngắn hơn.
+
+Kể cả khi hết RAM giữa chừng, tool vẫn **ghi ra WAV chưa hậu kỳ** thay vì vứt bỏ —
+công đọc mấy chục phút không mất.
+
 ## 8. Hỏng thì xem đâu
 
 Mọi thứ đều ghi vào `logs\tao_voice_<ngày>.log` (log file chi tiết hơn màn hình).
@@ -271,6 +297,7 @@ Mọi thứ đều ghi vào `logs\tao_voice_<ngày>.log` (log file chi tiết h�
 | Nạp giọng bị từ chối | mẫu dưới 4 giây; dùng `--tu`/`--den` để lấy đúng đoạn nói |
 | SRT lệch | đổi `--whisper-model medium`; nếu thiếu faster-whisper thì SRT chỉ là ước lượng |
 | Chạy chậm bất thường | `--luong` để quá cao, hoặc đang dùng model `*_24l` |
+| `Unable to allocate ... MiB` | hết RAM — xem mục 7, phần “Kịch bản dài” |
 
 Xoá `.cache_voice\` nếu muốn tool mã hoá lại giọng mẫu từ đầu.
 
