@@ -7,6 +7,8 @@
 >
 > Làm ảnh bằng **Flow** trên trình duyệt? Có bản tiện ích Chrome:
 > **[README_CHROME.md](README_CHROME.md)** — bật nút gạt rồi tải dự án như thường.
+> Tiện ích chạy được cả trên Windows lẫn macOS; bản Python có `XOA_WATERMARK.bat`
+> cho Windows và `XOA_WATERMARK.command` cho macOS.
 
 # TAO_VOICE — đọc kịch bản .txt thành WAV + SRT (Windows, CPU-only)
 

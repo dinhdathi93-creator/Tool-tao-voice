@@ -771,7 +771,7 @@ def chay(tuy_chon: argparse.Namespace) -> int:
                 log.warning("Anh %dx%d: khong tu do duoc vung (%s).", kt[0], kt[1], ghi_chu)
                 log.warning("  -> Chay lai va chi ro, vi du:  --vung duoi-phai")
 
-    xong = hong = 0
+    xong = hong = bo_qua = 0
     for f in hang_doi:
         ten_ra = f.stem + tuy_chon.hau_to + f.suffix
         dich = thu_muc_ra / ten_ra
@@ -780,6 +780,7 @@ def chay(tuy_chon: argparse.Namespace) -> int:
         if dich.exists() and not (tuy_chon.lam_lai or tuy_chon.ghi_de or tuy_chon.xem_thu):
             log.info("   [BO QUA] %s da co trong %s (dung --lam-lai de lam lai)",
                      dich.name, thu_muc_ra.name)
+            bo_qua += 1
             continue
         try:
             if f.suffix.lower() in DUOI_VIDEO:
@@ -802,8 +803,9 @@ def chay(tuy_chon: argparse.Namespace) -> int:
         hong += 0 if ok else 1
 
     log.info("=" * 70)
-    log.info("Tong ket: %d xong, %d hong. Ket qua trong %s",
-             xong, hong, f.parent if tuy_chon.ghi_de else thu_muc_ra)
+    them = f", {bo_qua} bo qua vi da co san (them --lam-lai de lam lai)" if bo_qua else ""
+    log.info("Tong ket: %d xong, %d hong%s. Ket qua trong %s",
+             xong, hong, them, f.parent if tuy_chon.ghi_de else thu_muc_ra)
     return 0 if hong == 0 else 1
 
 

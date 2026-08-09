@@ -31,12 +31,30 @@ Muốn xử lý **video** thì cần thêm `ffmpeg` trong PATH — https://ffmpe
 
 ## 2. Chạy
 
-**Cách dễ nhất:** kéo thả ảnh hoặc thư mục vào **`XOA_WATERMARK.bat`**. Nó hỏi 2 câu:
+### Trên Windows
+
+Kéo thả ảnh hoặc thư mục vào **`XOA_WATERMARK.bat`**. Nó hỏi 2 câu:
 
 1. Watermark nằm ở đâu (tự động dò / góc dưới phải / góc dưới trái / …)
 2. Watermark có phải chữ trắng mờ không (chọn `C` để chỉ vá đúng nét chữ, nền giữ nguyên)
 
 Bấm đúp mà không kéo thả gì = xử lý hết ảnh trong `WM_CHO/`.
+
+### Trên macOS
+
+Bấm đúp **`XOA_WATERMARK.command`** trong Finder.
+
+> **Lần đầu macOS sẽ chặn** vì file tải từ mạng về: bấm **chuột phải** (hoặc Control +
+> click) lên file → **Open** → hộp thoại hiện ra bấm **Open** lần nữa. Từ lần sau bấm
+> đúp là chạy. Nếu báo *"permission denied"*, mở Terminal, gõ `chmod +x ` (có dấu cách
+> ở cuối) rồi kéo file `.command` vào cửa sổ Terminal và Enter.
+
+Nó hỏi giống bản Windows, thêm một câu cuối: **ảnh nằm ở đâu**. Lúc đó bạn **kéo file
+hoặc thư mục ảnh thả thẳng vào cửa sổ Terminal** (kéo nhiều file một lúc cũng được) rồi
+bấm Enter. Bấm Enter luôn = xử lý hết ảnh trong `WM_CHO/`.
+
+Lần chạy đầu nó tự tạo môi trường riêng `.venv_wm/` và cài `numpy` + `pillow` vào đó —
+không đụng gì tới Python hệ thống của máy. Chưa có Python 3 thì nó dừng lại và chỉ cách cài.
 
 **Bằng dòng lệnh:**
 
@@ -47,6 +65,9 @@ python xoa_watermark.py D:\KHO_ANH --vung 1520,980,380,80 --loc-mau sang
 python xoa_watermark.py anh.png --xem-thu                 # chỉ vẽ khung đỏ để soi
 python xoa_watermark.py --tu-kiem-tra                     # tự test, không cần ảnh thật
 ```
+
+Trên macOS thay `python` bằng `python3` (hoặc `.venv_wm/bin/python` sau lần chạy đầu),
+và đường dẫn viết kiểu `/Users/ban/Anh` thay vì `D:\KHO_ANH`.
 
 > **Chưa chắc khung đúng chỗ thì chạy `--xem-thu` trước.** Nó xuất
 > `<tên>_xem_truoc.png` có khung đỏ, mở lên soi, khớp rồi mới chạy thật. Đỡ phải xử lý
@@ -160,8 +181,9 @@ Log đầy đủ nằm trong `logs\xoa_watermark_<ngày>.log`.
 
 ```
 Tool-tao-voice\
-├─ XOA_WATERMARK.bat   ← kéo thả ảnh / bấm đúp để chạy
-├─ xoa_watermark.py    ← toàn bộ tool
+├─ XOA_WATERMARK.bat       ← Windows: kéo thả ảnh / bấm đúp để chạy
+├─ XOA_WATERMARK.command   ← macOS: bấm đúp trong Finder
+├─ xoa_watermark.py        ← toàn bộ tool
 ├─ WM_CHO\             ← bỏ ảnh dính watermark vào đây
 ├─ WM_XONG\            ← ảnh sạch xuất ra đây
 └─ logs\               ← log theo ngày

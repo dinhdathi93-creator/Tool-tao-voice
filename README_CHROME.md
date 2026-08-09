@@ -16,14 +16,24 @@ mạng, không cần Python.
 
 ## 1. Cài vào Chrome
 
-1. Tải cả thư mục `chrome_xoa_watermark/` về máy (nếu đã clone repo thì có sẵn).
+Cách cài **giống hệt nhau trên Windows và macOS**.
+
+1. Giải nén, được thư mục `chrome_xoa_watermark/`. **Để nó ở một chỗ cố định** —
+   xoá hay đổi chỗ là Chrome mất tiện ích. Trên Mac đừng để trong thư mục Downloads
+   (dễ bị dọn tự động); chuyển vào `~/Documents/` hay `~/Applications/` chẳng hạn.
 2. Mở Chrome → gõ `chrome://extensions` vào thanh địa chỉ → Enter.
 3. Bật **Chế độ dành cho nhà phát triển** (*Developer mode*) — công tắc góc trên bên phải.
-4. Bấm **Tải tiện ích đã giải nén** (*Load unpacked*) → chọn thư mục `chrome_xoa_watermark`.
+4. Bấm **Tải tiện ích đã giải nén** (*Load unpacked*) → chọn thư mục `chrome_xoa_watermark`
+   (chọn đúng thư mục có file `manifest.json` bên trong).
 5. Xong. Ghim biểu tượng vào thanh công cụ cho dễ bấm.
 
 Chrome sẽ nhắc "tiện ích ở chế độ nhà phát triển" mỗi lần mở — bấm bỏ qua là được,
 đó là chuyện bình thường với tiện ích không cài từ Web Store.
+
+**Trình duyệt nào dùng được:** Chrome, Edge, Brave, Vivaldi, Arc, Opera — tất cả
+đều là nhân Chromium nên cài y hệt (Edge thì vào `edge://extensions`).
+**Safari thì không** — Safari dùng định dạng tiện ích khác hẳn, phải đóng gói bằng
+Xcode mới cài được. Trên Mac cứ dùng Chrome cho việc này.
 
 ## 2. Dùng cách nào?
 
@@ -126,7 +136,7 @@ file không phải ảnh còn nguyên.
 
 ## 8. Liên quan
 
-Bản chạy trên máy (Windows, hàng loạt, có cả video) nằm ở
-**[README_WATERMARK.md](README_WATERMARK.md)** — cùng một thuật toán, kéo thả vào
-`XOA_WATERMARK.bat`. Dùng bản đó khi ảnh đã nằm sẵn trong ổ đĩa và bạn muốn xử lý
-cả nghìn ảnh mà không phải mở trình duyệt.
+Bản chạy trên máy (hàng loạt, có cả video) nằm ở
+**[README_WATERMARK.md](README_WATERMARK.md)** — cùng một thuật toán, chạy bằng Python:
+Windows kéo thả vào `XOA_WATERMARK.bat`, macOS bấm đúp `XOA_WATERMARK.command`. Dùng bản
+đó khi ảnh đã nằm sẵn trong ổ đĩa, hoặc khi cần xử lý video.
