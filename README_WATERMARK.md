@@ -108,7 +108,8 @@ Khung đó dùng chung cho cả nhóm ảnh cùng kích thước, không dò l�
 
 | Cách | Làm gì | Hợp với |
 |---|---|---|
-| `va` *(mặc định)* | Vá lại nền, lấy màu và hướng chuyển màu từ viền xung quanh | Hầu hết trường hợp, nhất là nền phẳng / vector / chuyển màu |
+| `va` *(mặc định)* | Vá theo **cấu trúc nền**: mỗi điểm nhìn sang trái/phải cùng hàng và trên/dưới cùng cột, tin hướng nào hai đầu cùng màu | Hầu hết trường hợp — giữ nguyên ranh giới sắc nét của ảnh vector / nền phẳng / chuyển màu |
+| `va-mem` | Vá kiểu khuếch tán, tán màu đều từ viền vào | Ảnh chụp nền rối. **Làm nhoè ranh giới sắc nét** nên đừng dùng cho ảnh vector |
 | `to` | Tô đè một màu lấy từ viền vùng | Nền đúng một màu |
 | `cat` | Cắt bỏ hẳn dải có watermark (thêm `--giu-kich-thuoc` để phóng lại như cũ) | Watermark sát mép, cắt đi không tiếc |
 | `nhoe` | Vỡ pixel vùng đó | Nền quá rối, vá không nổi — **che** chứ không phải xoá |
@@ -153,7 +154,7 @@ ra ảnh, chạy `--xem-thu` trên ảnh đó để canh khung, rồi lấy to�
 | Tham số | Mặc định | Nghĩa |
 |---|---|---|
 | `--vung` | `tu-dong` | Vùng có watermark (mục 3) |
-| `--cach` | `va` | `va` / `to` / `cat` / `nhoe` (mục 4) |
+| `--cach` | `va` | `va` / `va-mem` / `to` / `cat` / `nhoe` (mục 4) |
 | `--loc-mau` | `tat` | `tat` / `sang` / `toi` / `#RRGGBB` (mục 5) |
 | `--dung-sai` | tự | Độ rộng tay khi lọc màu |
 | `--no-rong` | `2` | Phình mặt nạ thêm mấy pixel |
@@ -180,6 +181,7 @@ Mã thoát: `0` = xong sạch, `1` = có file hỏng, `2` = tham số/đầu và
 | `vung tim duoc qua to` | Ảnh có khung viền/nền chung lớn → tự chỉ `--vung` |
 | Khoanh nhầm cả mảng to | Dùng `--vung logo-duoi-phai`, hoặc `--xem-thu` để canh rồi gõ thẳng toạ độ |
 | Vá xong còn vệt mờ | Tăng `--no-rong` lên 3–4, hoặc khoanh `--vung` rộng thêm chút |
+| Vá xong lộ vệt nhoè vắt qua ranh giới màu | Đang dùng `--cach va-mem`; bỏ đi để về `va` (theo cấu trúc) |
 | Vá xong nhoè cả mảng nền đẹp | Dùng `--loc-mau sang` để chỉ vá nét chữ, hoặc khoanh vùng nhỏ lại |
 | Nền ảnh chụp thật vá bị bệt | Cài `opencv-python-headless` rồi chạy lại |
 | Video báo cần ffmpeg | Cài ffmpeg và thêm vào PATH |

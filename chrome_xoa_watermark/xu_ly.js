@@ -9,7 +9,7 @@
   var CAI_DAT_MAC_DINH = {
     bat: true,
     vung: "tu-dong",        // tu-dong | duoi-phai | ... | x,y,w,h
-    cach: "va",             // va | to
+    cach: "va",             // va (theo cau truc) | va-mem (khuech tan) | to
     loc_mau: "tat",         // tat | sang | toi | #RRGGBB
     dung_sai: 0,
     no_rong: 2,

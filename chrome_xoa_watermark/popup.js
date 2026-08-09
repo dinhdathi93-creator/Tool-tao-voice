@@ -15,9 +15,9 @@ function veGiaoDien() {
     ? "Đang bật — vào Flow, bấm tải dự án như bình thường."
     : "Nút gạt đang tắt. Bật lên để tự xử lý lúc tải dự án.";
 
-  var la_goc = Object.prototype.hasOwnProperty.call(
-    { "tu-dong": 1, "duoi-phai": 1, "duoi-trai": 1, "tren-phai": 1, "tren-trai": 1,
-      duoi: 1, tren: 1, giua: 1 }, caiDat.vung);
+  var la_goc = Array.prototype.some.call(e("vung").options, function (o) {
+    return o.value === caiDat.vung;
+  });
   e("vung").value = la_goc ? caiDat.vung : "tu-go";
   e("vungTuGo").classList.toggle("an", la_goc);
   if (!la_goc) e("vungTuGo").value = caiDat.vung;

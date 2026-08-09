@@ -26,8 +26,11 @@ function docCaiDatTuManHinh() {
 chrome.storage.local.get(["cai_dat"], function (kq) {
   trangThai.cai_dat = Object.assign({}, XULY.CAI_DAT_MAC_DINH, kq.cai_dat || {});
   var cd = trangThai.cai_dat;
-  var dsGoc = ["tu-dong", "duoi-phai", "duoi-trai", "tren-phai", "tren-trai", "duoi", "tren", "giua"];
-  if (dsGoc.indexOf(cd.vung) >= 0) e("vung").value = cd.vung;
+  // lay thang danh sach tu menu de them mot muc moi la khong phai sua o hai noi
+  var coTrongMenu = Array.prototype.some.call(e("vung").options, function (o) {
+    return o.value === cd.vung;
+  });
+  if (coTrongMenu) e("vung").value = cd.vung;
   else e("vungTuGo").value = cd.vung;
   e("locMau").value = cd.loc_mau;
   e("cach").value = cd.cach;
@@ -157,6 +160,15 @@ function soiTruoc() {
 }
 
 e("lamLai").addEventListener("click", soiTruoc);
+
+// Doi lua chon trong menu thi bo khung go tay / keo tay di, khong de no lang le
+// thang lua chon moi (truoc day chon lai menu ma khung cu van duoc dung).
+e("vung").addEventListener("change", function () {
+  if (e("vungTuGo").value.trim()) {
+    e("vungTuGo").value = "";
+    if (trangThai.anh_dau) soiTruoc();
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Keo chuot khoanh vung ngay tren anh - cach chac an nhat khi tu do sai

@@ -76,7 +76,8 @@ của Flow thì nhìn ảnh thu nhỏ không thấy gì đâu.
 | | *Kéo chuột trên ảnh* | Chắc ăn nhất — khoanh tay đúng chỗ, không cần đoán |
 | **Chỉ vá đúng nét chữ** | Vá cả ô | Chắc ăn, hợp với logo nhiều màu |
 | | Chỉ nét sáng / trắng | Đẹp hơn với watermark chữ trắng — nền trong ô giữ nguyên |
-| **Cách xử lý** | Vá lại nền | Lấy màu và hướng chuyển màu từ viền quanh vá vào |
+| **Cách xử lý** | Vá theo cấu trúc nền | **Giữ nguyên ranh giới sắc nét.** Với mỗi điểm cần vá, nó nhìn sang trái/phải cùng hàng và trên/dưới cùng cột, hướng nào hai đầu cùng màu thì tin hướng đó |
+| | Vá mềm — khuếch tán | Tán màu đều ra. Mượt hơn với ảnh chụp nền rối, nhưng **làm nhoè ranh giới sắc nét** |
 | | Tô màu nền | Nền đúng một màu thì cách này gọn hơn |
 | **Nở mặt nạ** | 2 | Tăng lên 3–4 nếu vá xong còn viền mờ quanh chỗ chữ |
 
@@ -105,6 +106,24 @@ Trong popup có mục **Chẩn đoán**:
 
 Gửi tôi mấy dòng đó là biết Flow tải kiểu gì để sửa cho khớp. Trong lúc chờ thì
 cứ dùng đường B, kết quả y hệt.
+
+## 4b. Vì sao "vá theo cấu trúc"
+
+Ảnh kênh bạn có **ranh giới sắc lẹm giữa nền xanh và dải đất vàng**. Cách vá khuếch tán
+(tán màu đều từ viền vào) đi qua chỗ đó là thành vệt nhoè — nhìn phát hiện ra ngay.
+
+Cách mặc định bây giờ làm khác: với mỗi điểm cần vá, nó tìm điểm lành gần nhất ở
+**bốn hướng** — trái/phải cùng hàng, trên/dưới cùng cột — rồi tin hướng nào có **hai đầu
+cùng màu**. Nền là dải màu ngang thì hàng nào cũng đồng màu, nối ngang ra đúng màu của
+chính hàng đó, nên đường ranh không bị kéo lệch một pixel nào.
+
+Đo trên đúng tình huống đó (dấu ✦ nằm vắt qua ranh giới xanh/vàng), sai lệch so với ảnh
+nền sạch: **khuếch tán 25,0/255 → theo cấu trúc 0,5/255**. Chạy hết đường ống thật trong
+Chromium (giải nén zip → canvas → vá → mã hoá lại → đóng zip) thì vùng quanh logo và
+đường ranh đều ra **0,00** — không lệch một pixel.
+
+Chỗ nào nền thật sự rối (ảnh chụp), độ tin cậy thấp thì nó tự pha sang bản khuếch tán
+cho mượt, không để lộ vệt gãy.
 
 ## 5b. Tự động dò khoanh nhầm chỗ
 

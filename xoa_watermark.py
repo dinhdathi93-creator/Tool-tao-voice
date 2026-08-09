@@ -24,7 +24,9 @@ Chon VUNG (--vung):
   x%,y%,w%,h%             theo phan tram, vi du 78%,88%,21%,10%
 
 Chon CACH xu ly (--cach):
-  va      va lai nen tu vien xung quanh (mac dinh, dep nhat voi nen phang / vector)
+  va      va theo cau truc nen (mac dinh) - giu nguyen ranh gioi sac net, hop
+          nhat voi anh vector / nen phang / nen chuyen mau
+  va-mem  va kieu khuech tan - muot hon nhung lam nhoe ranh gioi sac net
   to      to de mau nen lay tu vien vung (nen mot mau)
   cat     cat bo dai co watermark (--giu-kich-thuoc de phong to lai nhu cu)
   nhoe    lam nhoe / vo pixel (chi che, khong phai xoa - dung khi nen qua roi)
@@ -425,6 +427,94 @@ def va_lai(anh: np.ndarray, mat_na: np.ndarray, dung_opencv: bool = True) -> np.
     return _va_bang_numpy(anh, mat_na)
 
 
+def _mot_huong(
+    A: np.ndarray, B: np.ndarray, co_a: np.ndarray, co_b: np.ndarray,
+    d_a: np.ndarray, d_b: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Mau + trong so + do tin cay khi noi hai dau A, B tren cung mot truc."""
+    khac = np.abs(A - B).mean(axis=2)
+    tin2 = 1.0 / (1.0 + khac / 6.0)          # hai dau cang giong nhau cang dang tin
+    t = (d_a / np.maximum(1.0, d_a + d_b))[..., None]
+    c2 = A * (1.0 - t) + B * t
+    w2 = tin2 ** 2 / (1.0 + (d_a + d_b) / 60.0)
+
+    chi_a = co_a & ~co_b
+    chi_b = co_b & ~co_a
+    mot_dau = chi_a | chi_b
+    xa = np.where(chi_a, d_a, d_b)
+    c1 = np.where(chi_a[..., None], A, B)
+    w1 = 0.25 / (1.0 + xa / 40.0)
+    tin1 = 0.3 / (1.0 + xa / 40.0)
+
+    ca_hai = co_a & co_b
+    mau = np.where(ca_hai[..., None], c2, c1)
+    trong_so = np.where(ca_hai, w2, np.where(mot_dau, w1, 0.0))
+    tin = np.where(ca_hai, tin2, np.where(mot_dau, tin1, 0.0))
+    return mau, trong_so, tin
+
+
+def va_cau_truc(
+    anh: np.ndarray, mat_na: np.ndarray, du_phong: np.ndarray | None = None
+) -> np.ndarray:
+    """Va theo CAU TRUC nen - giu duoc net sac cua nen phang / vector.
+
+    Voi moi pixel trong lo, nhin sang 4 huong tim pixel con lanh gan nhat:
+    trai/phai cung hang, tren/duoi cung cot. Huong nao co HAI DAU GIONG MAU NHAU
+    thi huong do dang tin - noi thang mau giua hai dau. Nen la dai mau ngang
+    (vi du xanh o tren, vang o duoi) thi hang nao cung dong mau, noi ngang ra
+    dung mau cua chinh hang do, nen ranh gioi khong bi keo nhoe.
+
+    Cho nao ca hai huong deu khong dang tin (nen roi, anh chup that) thi lay ban
+    'du_phong' (va khuech tan) cho muot.
+    """
+    if not mat_na.any():
+        return anh.copy()
+
+    cao, rong = anh.shape[:2]
+    a = anh.astype(np.float32)
+    biet = ~mat_na
+
+    cot = np.tile(np.arange(rong, dtype=np.int32), (cao, 1))
+    hang = np.tile(np.arange(cao, dtype=np.int32)[:, None], (1, rong))
+
+    trai = np.maximum.accumulate(np.where(biet, cot, -1), axis=1)
+    phai = np.minimum.accumulate(np.where(biet, cot, rong)[:, ::-1], axis=1)[:, ::-1]
+    tren = np.maximum.accumulate(np.where(biet, hang, -1), axis=0)
+    duoi = np.minimum.accumulate(np.where(biet, hang, cao)[::-1], axis=0)[::-1]
+
+    def mau_tai(x_idx: np.ndarray, y_idx: np.ndarray) -> np.ndarray:
+        return a[np.clip(y_idx, 0, cao - 1), np.clip(x_idx, 0, rong - 1)]
+
+    # huong ngang
+    mau_n, w_n, tin_n = _mot_huong(
+        mau_tai(trai, hang), mau_tai(phai, hang),
+        trai >= 0, phai < rong,
+        np.maximum(1, cot - trai).astype(np.float32),
+        np.maximum(1, phai - cot).astype(np.float32),
+    )
+    # huong doc
+    mau_d, w_d, tin_d = _mot_huong(
+        mau_tai(cot, tren), mau_tai(cot, duoi),
+        tren >= 0, duoi < cao,
+        np.maximum(1, hang - tren).astype(np.float32),
+        np.maximum(1, duoi - hang).astype(np.float32),
+    )
+
+    tong_w = w_n + w_d
+    cau_truc = (mau_n * w_n[..., None] + mau_d * w_d[..., None]) / np.maximum(
+        1e-6, tong_w
+    )[..., None]
+
+    nen = du_phong.astype(np.float32) if du_phong is not None else a
+    tin_nhat = np.clip(np.maximum(tin_n, tin_d), 0.0, 1.0)[..., None]
+    tron = tin_nhat * cau_truc + (1.0 - tin_nhat) * nen
+    tron = np.where((tong_w > 0)[..., None], tron, nen)
+
+    ra = a.copy()
+    ra[mat_na] = tron[mat_na]
+    return np.clip(ra, 0, 255).astype(np.uint8)
+
+
 def to_mau_nen(anh: np.ndarray, mat_na: np.ndarray, vung: Vung) -> np.ndarray:
     """To de vung watermark bang mau lay tu vien xung quanh."""
     cao, rong = anh.shape[:2]
@@ -674,8 +764,13 @@ def xu_ly_anh(
         mat_na = tao_mat_na(anh, vung, tuy_chon.loc_mau, tuy_chon.dung_sai, tuy_chon.no_rong)
         if cach == "to":
             moi = to_mau_nen(anh, mat_na, vung)
-        else:
+        elif cach == "va-mem":
             moi = va_lai(anh, mat_na, dung_opencv=not tuy_chon.khong_opencv)
+        else:
+            # mac dinh: va theo cau truc, lay ban khuech tan lam nen du phong
+            moi = va_cau_truc(
+                anh, mat_na, va_lai(anh, mat_na, dung_opencv=not tuy_chon.khong_opencv)
+            )
 
     luu_anh(moi, alpha, ra, tuy_chon.chat_luong)
     log.info("   [XONG] %s  vung %s  cach %s -> %s", duong_dan.name, vung, cach, ra.name)
@@ -1030,6 +1125,27 @@ def tu_kiem_tra() -> int:
     if mn[:15, :20].any():
         loi.append("'sang' bat nham ca mang mau ruc lam nen")
 
+    # --- 4b. Va o cho co ranh gioi sac net (nen xanh / dai vang kieu Flow) --
+    goc_flow = _anh_kieu_flow(7)
+    ban_flow, _ = _dan_sao_goc(goc_flow)
+    v_flow = Vung(1243, int(768 * 0.87) - 42, 72, 72)   # khung trum ca ranh gioi
+    mn_flow = tao_mat_na(ban_flow, v_flow, "tat", 0, 2)
+    o_flow = (slice(v_flow.y, v_flow.y + v_flow.h), slice(v_flow.x, v_flow.x + v_flow.w))
+
+    def _lech_flow(a: np.ndarray) -> float:
+        return float(np.abs(a[o_flow].astype(np.float32)
+                            - goc_flow[o_flow].astype(np.float32)).mean())
+
+    mem = va_lai(ban_flow, mn_flow, dung_opencv=False)
+    theo_cau_truc = va_cau_truc(ban_flow, mn_flow, mem)
+    log.info("   Va o cho giap ranh xanh/vang: khuech tan %.1f -> theo cau truc %.1f",
+             _lech_flow(mem), _lech_flow(theo_cau_truc))
+    if _lech_flow(theo_cau_truc) > 3.0:
+        loi.append(f"va theo cau truc con de lai vet o cho giap ranh"
+                   f" ({_lech_flow(theo_cau_truc):.1f}/255)")
+    if _lech_flow(theo_cau_truc) > _lech_flow(mem):
+        loi.append("va theo cau truc phai hon han khuech tan o cho giap ranh sac net")
+
     # --- 5. Va lai co that su sach khong ----------------------------------
     o = (slice(that.y, that.y + that.h), slice(that.x, that.x + that.w))
     truoc = float(np.abs(ban[0][o].astype(np.float32) - sach[0][o].astype(np.float32)).mean())
@@ -1130,8 +1246,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     p.add_argument("--vung", default="tu-dong",
                    help="tu-dong | logo-duoi-phai (logo nho o goc) | duoi-phai | duoi-trai "
                         "| tren-phai | tren-trai | duoi | tren | giua | x,y,w,h (pixel hoac %%)")
-    p.add_argument("--cach", default="va", choices=["va", "to", "cat", "nhoe"],
-                   help="va (mac dinh) | to | cat | nhoe")
+    p.add_argument("--cach", default="va", choices=["va", "va-mem", "to", "cat", "nhoe"],
+                   help="va (mac dinh, giu net nen) | va-mem (khuech tan) | to | cat | nhoe")
     p.add_argument("--loc-mau", dest="loc_mau", default="tat",
                    help="tat | sang | toi | #RRGGBB - chi xoa dung net watermark")
     p.add_argument("--dung-sai", dest="dung_sai", type=float, default=0.0,

@@ -511,6 +511,124 @@
     return { rong: rong, cao: cao, du_lieu: ra };
   }
 
+  /**
+   * Va theo CAU TRUC nen - cach nay giu duoc net sac cua nen phang / vector.
+   *
+   * Voi moi pixel trong lo, nhin sang 4 huong tim pixel con lanh gan nhat:
+   * trai/phai cung hang, tren/duoi cung cot. Huong nao co HAI DAU GIONG MAU NHAU
+   * thi huong do dang tin - noi thang mau giua hai dau. Nen la dai mau ngang
+   * (xanh o tren, vang o duoi) thi hang nao cung dong mau, noi ngang la ra dung
+   * mau cua chinh hang do => ranh gioi xanh/vang khong bi keo nhoe.
+   *
+   * Cho nao ca hai huong deu khong tin duoc (nen roi, anh chup that) thi tra ve
+   * cach va khuech tan cho muot.
+   */
+  function vaCauTruc(anh, matNa, anhDuPhong) {
+    var W = anh.rong, H = anh.cao, d = anh.du_lieu, n = W * H;
+    var biet = new Uint8Array(n);
+    var coLo = false;
+    for (var i = 0; i < n; i++) {
+      biet[i] = matNa[i] ? 0 : 1;
+      if (matNa[i]) coLo = true;
+    }
+    if (!coLo) return anh;
+
+    // pixel lanh gan nhat theo 4 huong (quet 4 luot, moi luot O(so pixel))
+    var trai = new Int32Array(n), phai = new Int32Array(n);
+    var tren = new Int32Array(n), duoi = new Int32Array(n);
+    var y, x, k;
+    for (y = 0; y < H; y++) {
+      var cuoiT = -1;
+      for (x = 0; x < W; x++) { k = y * W + x; if (biet[k]) cuoiT = k; trai[k] = cuoiT; }
+      var cuoiP = -1;
+      for (x = W - 1; x >= 0; x--) { k = y * W + x; if (biet[k]) cuoiP = k; phai[k] = cuoiP; }
+    }
+    for (x = 0; x < W; x++) {
+      var cuoiTr = -1;
+      for (y = 0; y < H; y++) { k = y * W + x; if (biet[k]) cuoiTr = k; tren[k] = cuoiTr; }
+      var cuoiD = -1;
+      for (y = H - 1; y >= 0; y--) { k = y * W + x; if (biet[k]) cuoiD = k; duoi[k] = cuoiD; }
+    }
+
+    function khacMau(a, b) {
+      return (Math.abs(d[a * 4] - d[b * 4]) + Math.abs(d[a * 4 + 1] - d[b * 4 + 1])
+            + Math.abs(d[a * 4 + 2] - d[b * 4 + 2])) / 3;
+    }
+
+    var ra = new Uint8ClampedArray(d);
+    var duPhong = anhDuPhong ? anhDuPhong.du_lieu : null;
+
+    for (var p = 0; p < n; p++) {
+      if (!matNa[p]) continue;
+      var py = (p / W) | 0, px = p - py * W;
+      var tong = [0, 0, 0], tongW = 0, tinNhat = 0;
+
+      // huong ngang
+      var a1 = trai[p], b1 = phai[p];
+      if (a1 >= 0 || b1 >= 0) {
+        var kq = motHuong(a1, b1, px, a1 >= 0 ? a1 - py * W : 0, b1 >= 0 ? b1 - py * W : 0);
+        tong[0] += kq.w * kq.c[0]; tong[1] += kq.w * kq.c[1]; tong[2] += kq.w * kq.c[2];
+        tongW += kq.w;
+        if (kq.tin > tinNhat) tinNhat = kq.tin;
+      }
+      // huong doc
+      var a2 = tren[p], b2 = duoi[p];
+      if (a2 >= 0 || b2 >= 0) {
+        var kq2 = motHuong(a2, b2, py, a2 >= 0 ? (a2 / W) | 0 : 0, b2 >= 0 ? (b2 / W) | 0 : 0);
+        tong[0] += kq2.w * kq2.c[0]; tong[1] += kq2.w * kq2.c[1]; tong[2] += kq2.w * kq2.c[2];
+        tongW += kq2.w;
+        if (kq2.tin > tinNhat) tinNhat = kq2.tin;
+      }
+
+      if (tongW <= 0) {
+        if (duPhong) {
+          ra[p * 4] = duPhong[p * 4];
+          ra[p * 4 + 1] = duPhong[p * 4 + 1];
+          ra[p * 4 + 2] = duPhong[p * 4 + 2];
+        }
+        continue;
+      }
+
+      var cauTruc = [tong[0] / tongW, tong[1] / tongW, tong[2] / tongW];
+      if (duPhong && tinNhat < 1) {
+        // nen roi -> pha them ban khuech tan cho khoi thay via
+        for (var c = 0; c < 3; c++) {
+          ra[p * 4 + c] = tinNhat * cauTruc[c] + (1 - tinNhat) * duPhong[p * 4 + c];
+        }
+      } else {
+        ra[p * 4] = cauTruc[0]; ra[p * 4 + 1] = cauTruc[1]; ra[p * 4 + 2] = cauTruc[2];
+      }
+    }
+
+    /** Tinh mau + do tin cay cua mot huong (2 dau a, b tren cung truc). */
+    function motHuong(a, b, viTri, toaA, toaB) {
+      if (a < 0 || b < 0) {           // chi mot dau co pixel lanh
+        var chi = a >= 0 ? a : b;
+        var xa = Math.abs(viTri - (a >= 0 ? toaA : toaB));
+        return {
+          c: [d[chi * 4], d[chi * 4 + 1], d[chi * 4 + 2]],
+          w: 0.25 / (1 + xa / 40), tin: 0.3 / (1 + xa / 40),
+        };
+      }
+      var dA = Math.max(1, Math.abs(viTri - toaA));
+      var dB = Math.max(1, Math.abs(viTri - toaB));
+      var t = dA / (dA + dB);          // noi thang giua hai dau
+      var khac = khacMau(a, b);
+      var tin = 1 / (1 + khac / 6);    // hai dau cang giong nhau cang dang tin
+      return {
+        c: [
+          d[a * 4] * (1 - t) + d[b * 4] * t,
+          d[a * 4 + 1] * (1 - t) + d[b * 4 + 1] * t,
+          d[a * 4 + 2] * (1 - t) + d[b * 4 + 2] * t,
+        ],
+        w: tin * tin / (1 + (dA + dB) / 60),
+        tin: tin,
+      };
+    }
+
+    return { rong: W, cao: H, du_lieu: ra };
+  }
+
   /** To de vung watermark bang mau lay tu vien xung quanh. */
   function toMauNen(anh, matNa, vung) {
     var rong = anh.rong, cao = anh.cao, d = anh.du_lieu;
@@ -566,7 +684,9 @@
     var matNa = taoMatNa(anh, vung, caiDat.loc_mau || "tat", caiDat.dung_sai || 0,
                          caiDat.no_rong == null ? 2 : caiDat.no_rong);
     if (caiDat.cach === "to") return toMauNen(anh, matNa, vung);
-    return vaLai(anh, matNa);
+    if (caiDat.cach === "va-mem") return vaLai(anh, matNa);
+    // mac dinh: va theo cau truc, lay ban khuech tan lam nen du phong
+    return vaCauTruc(anh, matNa, vaLai(anh, matNa));
   }
 
   var XW = {
@@ -582,6 +702,7 @@
     timVungTuDong: timVungTuDong,
     taoMatNa: taoMatNa,
     vaLai: vaLai,
+    vaCauTruc: vaCauTruc,
     toMauNen: toMauNen,
     veKhung: veKhung,
     xoaWatermark: xoaWatermark,

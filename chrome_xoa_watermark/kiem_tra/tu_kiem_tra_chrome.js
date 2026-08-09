@@ -238,6 +238,66 @@ async function dungGoiThu(thuMuc) {
       kiem(Math.abs(v.w - 0.20 * 1376) < 40 && Math.abs(v.h - 0.30 * 768) < 40,
            `[keo chuot] kich thuoc lech qua nhieu: ${JSON.stringify(v)}`);
     }
+    // chay that va do lai: vung watermark phai sach, ranh gioi xanh/vang khong nhoe
+    // doi lua chon trong menu phai TU BO khung keo tay, khong de no lang le thang
+    await t2.selectOption("#vung", "logo-duoi-phai");
+    kiem((await t2.inputValue("#vungTuGo")) === "",
+         "doi menu ma khung keo tay van con trong o toa do");
+    await t2.selectOption("#vung", "tu-dong");
+    await t2.click("#lamLai");
+    await t2.waitForSelector("#xemTruoc:not(.an)", { timeout: 60000 });
+    const moTaChay = await t2.textContent("#motaVung");
+    console.log(`   Truoc khi chay that: ${moTaChay.trim()}`);
+    kiem(/rộng=\d{1,3}, cao=\d{1,3}\b/.test(moTaChay) && moTaChay.includes("do duoc tu"),
+         "sau khi bo vung keo tay phai quay lai vung tu do: " + moTaChay);
+    await t2.click("#chay");
+    await t2.waitForSelector("#ketQua:not(.an)", { timeout: 180000 });
+
+    const sachFlowB64 = flow.sach.map((b) => b.toString("base64"));
+    const doFlow = await t2.evaluate(async ([b64, sao, dat]) => {
+      function tuB64(s) {
+        const bin = atob(s);
+        const u = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        return u;
+      }
+      function sanh(a, b, v) {
+        let tong = 0, dem = 0;
+        for (let y = v.y; y < v.y + v.h; y++) {
+          for (let x = v.x; x < v.x + v.w; x++) {
+            const i = (y * a.rong + x) * 4;
+            for (let c = 0; c < 3; c++) { tong += Math.abs(a.du_lieu[i + c] - b.du_lieu[i + c]); dem++; }
+          }
+        }
+        return tong / Math.max(1, dem);
+      }
+      const blob = await (await fetch(document.getElementById("taiVe").href)).blob();
+      const muc = (await window.XW_ZIP.docZip(blob)).filter((m) => window.XW_ANH.laAnh(m.ten));
+      const ra = [];
+      for (let i = 0; i < Math.min(3, muc.length); i++) {
+        const raSach = await window.XW_ANH.docAnh(await muc[i].doc(), muc[i].ten);
+        const goc = await window.XW_ANH.docAnh(tuB64(b64[i]), "goc.png");
+        const qx = Math.max(0, sao.x - 40), qy = Math.max(0, sao.y - 40);
+        const quanh = {
+          x: qx, y: qy,
+          w: Math.min(sao.w + 80, raSach.rong - qx),
+          h: Math.min(sao.h + 80, raSach.cao - qy),
+        };
+        ra.push({
+          quanh_logo: sanh(raSach, goc, quanh),
+          ranh_gioi: sanh(raSach, goc, { x: 0, y: dat - 3, w: 1376, h: 6 }),
+        });
+      }
+      return ra;
+    }, [sachFlowB64, flow.sao, Math.round(768 * 0.87)]);
+
+    doFlow.forEach((l, i) => {
+      console.log(`   Anh Flow ${i + 1}: quanh logo ${l.quanh_logo.toFixed(2)}, `
+        + `duong ranh xanh/vang ${l.ranh_gioi.toFixed(2)} (thang 0-255)`);
+      kiem(l.quanh_logo < 0.5, `[kieu Flow] con vet quanh cho logo (${l.quanh_logo.toFixed(2)}/255)`);
+      kiem(l.ranh_gioi < 1, `[kieu Flow] duong ranh xanh/vang bi nhoe (${l.ranh_gioi.toFixed(2)}/255)`);
+    });
+
     kiem(loiT2.length === 0, "trang kieu Flow co loi JS: " + loiT2.join(" | "));
 
     kiem(loiTrang.length === 0, "trang xu ly co loi JS: " + loiTrang.join(" | "));

@@ -9,6 +9,7 @@
 
 const zlib = require("zlib");
 const LOI = require("../loi_xoa.js");
+const { anhKieuFlow, danSaoGoc } = require("./anh_kieu_flow.js");
 const ZIP = require("../zip.js");
 
 const loi = [];
@@ -233,6 +234,25 @@ for (let i = 0; i < 40 * 40; i++) {
 }
 const vaAlpha = LOI.vaLai(coAlpha, LOI.taoMatNa(coAlpha, { x: 10, y: 10, w: 10, h: 10 }, "tat", 0, 0));
 kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong suot");
+
+// ---------------------------------------------------------------------------
+// 4b. Va o cho co ranh gioi sac net (nen xanh / dai vang kieu Flow)
+// ---------------------------------------------------------------------------
+
+{
+  const gocFlow = anhKieuFlow(7, 1376, 768);
+  const banFlow = danSaoGoc(gocFlow);
+  const vFlow = { x: 1243, y: Math.round(768 * 0.87) - 42, w: 72, h: 72 };
+  const mnFlow = LOI.taoMatNa(banFlow, vFlow, "tat", 0, 2);
+  const mem = LOI.vaLai(banFlow, mnFlow);
+  const theoCauTruc = LOI.vaCauTruc(banFlow, mnFlow, mem);
+  const lechMem = sanhTrongVung(mem, gocFlow, vFlow);
+  const lechCau = sanhTrongVung(theoCauTruc, gocFlow, vFlow);
+  console.log(`   Va o cho giap ranh xanh/vang: khuech tan ${lechMem.toFixed(1)}`
+    + ` -> theo cau truc ${lechCau.toFixed(1)}`);
+  kiem(lechCau < 3, `va theo cau truc con de lai vet o cho giap ranh (${lechCau.toFixed(1)}/255)`);
+  kiem(lechCau < lechMem, "va theo cau truc phai hon han khuech tan o cho giap ranh sac net");
+}
 
 // ---------------------------------------------------------------------------
 // 5. Zip: ghi -> doc lai, va doc duoc entry nen deflate
