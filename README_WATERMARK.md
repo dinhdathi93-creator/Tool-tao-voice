@@ -78,7 +78,8 @@ và đường dẫn viết kiểu `/Users/ban/Anh` thay vì `D:\KHO_ANH`.
 | Giá trị | Nghĩa |
 |---|---|
 | `tu-dong` *(mặc định)* | Tự dò vị trí bằng cách so nhiều ảnh cùng bộ |
-| `duoi-phai` `duoi-trai` `tren-phai` `tren-trai` | Một góc ảnh (30% ngang × 14% dọc) |
+| `logo-duoi-phai` `logo-duoi-trai` `logo-tren-phai` `logo-tren-trai` | Ô nhỏ sát góc (10% × 12%) — dùng cho logo bé như dấu ✦ của Flow / Gemini |
+| `duoi-phai` `duoi-trai` `tren-phai` `tren-trai` | Cả góc ảnh (30% ngang × 14% dọc) |
 | `duoi` `tren` | Cả dải ngang trên/dưới |
 | `giua` | Watermark to nằm giữa ảnh |
 | `1520,980,380,80` | Toạ độ pixel: `x,y,rộng,cao` |
@@ -93,6 +94,12 @@ Vì vậy nó cần:
 - ít nhất **3 ảnh cùng kích thước**, và
 - các ảnh có **nền khác nhau** (toàn ảnh giống hệt nhau thì tool từ chối dò, vì không
   tách nổi watermark ra khỏi nội dung — lúc đó bạn tự chỉ `--vung`).
+
+**Cái bẫy:** ảnh cùng một phong cách thường có sẵn thứ khác cũng "ảnh nào cũng có" —
+ví dụ đường ranh giữa nền và dải đất màu, hay khung viền. Nên trước khi chọn, tool loại
+thẳng: vệt dài hết chiều ngang mà mỏng, vệt dài hết chiều dọc mà hẹp, và mọi khối lớn
+hơn 15% diện tích ảnh. Số còn lại được chấm điểm theo độ sắc nét, độ gọn và mức độ nằm
+sát rìa — logo thật gần như luôn là đốm nhỏ, gọn, sát mép ảnh.
 
 Dò xong nó in ra khung đã đo, ví dụ `Tu do vi tri watermark cho anh 1280x720: 685,625,270,90`.
 Khung đó dùng chung cho cả nhóm ảnh cùng kích thước, không dò lại từng ảnh.
@@ -169,7 +176,9 @@ Mã thoát: `0` = xong sạch, `1` = có file hỏng, `2` = tham số/đầu và
 |---|---|
 | `khong thay net nao xuat hien o tat ca cac anh` | Watermark quá mờ hoặc mỗi ảnh một chỗ → tự chỉ `--vung` |
 | `cac anh gan nhu giong het nhau` | Bộ ảnh nền giống nhau, không tách được → tự chỉ `--vung` |
-| `vung tim duoc qua to (>35% anh)` | Ảnh có khung viền/nền chung lớn → tự chỉ `--vung` |
+| `chi thay duong ke / mang lon giong nhau` | Ảnh chỉ có đường ranh nền / khung viền chung, không có logo nhỏ → tự chỉ `--vung` |
+| `vung tim duoc qua to` | Ảnh có khung viền/nền chung lớn → tự chỉ `--vung` |
+| Khoanh nhầm cả mảng to | Dùng `--vung logo-duoi-phai`, hoặc `--xem-thu` để canh rồi gõ thẳng toạ độ |
 | Vá xong còn vệt mờ | Tăng `--no-rong` lên 3–4, hoặc khoanh `--vung` rộng thêm chút |
 | Vá xong nhoè cả mảng nền đẹp | Dùng `--loc-mau sang` để chỉ vá nét chữ, hoặc khoanh vùng nhỏ lại |
 | Nền ảnh chụp thật vá bị bệt | Cài `opencv-python-headless` rồi chạy lại |

@@ -104,6 +104,22 @@ function layMucAnh() {
   });
 }
 
+function veXemTruoc(ghiChu) {
+  var cd = docCaiDatTuManHinh();
+  var anh = trangThai.anh_dau, vung = trangThai.vung;
+  e("motaVung").textContent =
+    "Ảnh " + anh.rong + "×" + anh.cao + " — vùng vá: x=" + vung.x + ", y=" + vung.y
+    + ", rộng=" + vung.w + ", cao=" + vung.h
+    + (ghiChu ? " (" + ghiChu + ")" : "") + ". Tổng " + trangThai.so_anh + " ảnh.";
+  veLenCanvas(e("canvasKhung"), LOI.veKhung(anh, vung));
+  trangThai.anh_sach = LOI.xoaWatermark(anh, {
+    vung_pixel: vung, cach: cd.cach, loc_mau: cd.loc_mau,
+    dung_sai: cd.dung_sai, no_rong: cd.no_rong,
+  });
+  veLenCanvas(e("canvasSach"), trangThai.anh_sach);
+  if (!e("hopPhongTo").classList.contains("an")) vePhongTo();
+}
+
 function soiTruoc() {
   var cd = docCaiDatTuManHinh();
   hienKhoi("xemTruoc", false);
@@ -115,29 +131,23 @@ function soiTruoc() {
   layMucAnh().then(function (anhMuc) {
     if (!anhMuc.length) throw new Error("Không thấy ảnh nào (png/jpg/webp) trong gói này.");
     trangThai.anh_muc = anhMuc;
+    trangThai.so_anh = anhMuc.length;
     var tuDong = LOI.phanTichVung(cd.vung, 1000, 1000) === null;
     var doVung = tuDong ? XULY.doVungChoLo(anhMuc) : Promise.resolve({ vung: null, ghi_chu: "" });
 
     return doVung.then(function (kq) {
       if (tuDong && !kq.vung) {
         throw new Error("Không tự dò được vùng watermark (" + kq.ghi_chu
-          + "). Hãy chọn góc cụ thể ở phần Cài đặt rồi thả file lại.");
+          + "). Hãy chọn góc cụ thể ở phần Cài đặt, hoặc thả lại file rồi kéo chuột "
+          + "khoanh tay vùng watermark trên ảnh soi trước.");
       }
       return anhMuc[0].doc().then(function (d) { return ANH.docAnh(d, anhMuc[0].ten); })
         .then(function (anh) {
-          var vung = kq.vung || LOI.phanTichVung(cd.vung, anh.rong, anh.cao);
-          trangThai.vung = vung;
-          e("motaVung").textContent =
-            "Ảnh " + anh.rong + "×" + anh.cao + " — vùng vá: x=" + vung.x + ", y=" + vung.y
-            + ", rộng=" + vung.w + ", cao=" + vung.h
-            + (kq.ghi_chu ? " (" + kq.ghi_chu + ")" : "") + ". Tổng " + anhMuc.length + " ảnh.";
-          veLenCanvas(e("canvasKhung"), LOI.veKhung(anh, vung));
-          veLenCanvas(e("canvasSach"), LOI.xoaWatermark(anh, {
-            vung_pixel: vung, cach: cd.cach, loc_mau: cd.loc_mau,
-            dung_sai: cd.dung_sai, no_rong: cd.no_rong,
-          }));
+          trangThai.anh_dau = anh;
+          trangThai.vung = kq.vung || LOI.phanTichVung(cd.vung, anh.rong, anh.cao);
           hienKhoi("tienDo", false);
           hienKhoi("xemTruoc", true);
+          veXemTruoc(kq.ghi_chu);
         });
     });
   }).catch(function (er) {
@@ -147,6 +157,98 @@ function soiTruoc() {
 }
 
 e("lamLai").addEventListener("click", soiTruoc);
+
+// ---------------------------------------------------------------------------
+// Keo chuot khoanh vung ngay tren anh - cach chac an nhat khi tu do sai
+// ---------------------------------------------------------------------------
+
+(function () {
+  var canvas = e("canvasKhung");
+  var dangKeo = false, x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+
+  function toaDo(su) {
+    var o = canvas.getBoundingClientRect();
+    return {
+      x: (su.clientX - o.left) / o.width * trangThai.anh_dau.rong,
+      y: (su.clientY - o.top) / o.height * trangThai.anh_dau.cao,
+    };
+  }
+
+  function veTam() {
+    var anh = trangThai.anh_dau;
+    veLenCanvas(canvas, anh);
+    var o = canvas.getBoundingClientRect();
+    var ti = canvas.width / anh.rong;
+    var ctx = canvas.getContext("2d");
+    ctx.strokeStyle = "#ff3b30";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(Math.min(x0, x1) * ti, Math.min(y0, y1) * ti,
+                   Math.abs(x1 - x0) * ti, Math.abs(y1 - y0) * ti);
+    void o;
+  }
+
+  canvas.addEventListener("mousedown", function (su) {
+    if (!trangThai.anh_dau) return;
+    su.preventDefault();
+    dangKeo = true;
+    var t = toaDo(su);
+    x0 = x1 = t.x; y0 = y1 = t.y;
+  });
+
+  window.addEventListener("mousemove", function (su) {
+    if (!dangKeo) return;
+    var t = toaDo(su);
+    x1 = t.x; y1 = t.y;
+    veTam();
+  });
+
+  window.addEventListener("mouseup", function () {
+    if (!dangKeo) return;
+    dangKeo = false;
+    var w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
+    if (w < 4 || h < 4) { veXemTruoc("giữ nguyên vùng cũ"); return; }   // lỡ bấm nhầm
+    trangThai.vung = LOI.gioiHan(
+      { x: Math.min(x0, x1), y: Math.min(y0, y1), w: w, h: h },
+      trangThai.anh_dau.rong, trangThai.anh_dau.cao
+    );
+    e("vungTuGo").value = trangThai.vung.x + "," + trangThai.vung.y + ","
+      + trangThai.vung.w + "," + trangThai.vung.h;
+    veXemTruoc("bạn tự khoanh tay");
+  });
+})();
+
+// ---------------------------------------------------------------------------
+// Phong to cho dang khoanh de soi ky
+// ---------------------------------------------------------------------------
+
+function veMotO(canvas, anh, vung, tiLe) {
+  canvas.width = Math.round(vung.w * tiLe);
+  canvas.height = Math.round(vung.h * tiLe);
+  var tam = document.createElement("canvas");
+  tam.width = anh.rong; tam.height = anh.cao;
+  tam.getContext("2d").putImageData(
+    new ImageData(new Uint8ClampedArray(anh.du_lieu), anh.rong, anh.cao), 0, 0);
+  var ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(tam, vung.x, vung.y, vung.w, vung.h, 0, 0, canvas.width, canvas.height);
+}
+
+function vePhongTo() {
+  var v = LOI.noVung(trangThai.vung, Math.round(Math.max(trangThai.vung.w, trangThai.vung.h) * 0.6),
+                     trangThai.anh_dau.rong, trangThai.anh_dau.cao);
+  var tiLe = Math.max(1, Math.min(8, 420 / Math.max(1, v.w)));
+  veMotO(e("zoomTruoc"), trangThai.anh_dau, v, tiLe);
+  veMotO(e("zoomSau"), trangThai.anh_sach, v, tiLe);
+}
+
+e("phongTo").addEventListener("click", function () {
+  if (!trangThai.anh_dau) return;
+  var hop = e("hopPhongTo");
+  hop.classList.toggle("an");
+  this.textContent = hop.classList.contains("an")
+    ? "Phóng to chỗ đang khoanh" : "Ẩn phần phóng to";
+  if (!hop.classList.contains("an")) vePhongTo();
+});
 
 // ---------------------------------------------------------------------------
 // Chay that

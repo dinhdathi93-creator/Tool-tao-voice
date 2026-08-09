@@ -60,13 +60,20 @@ lỗi và nhắc bạn chuyển sang đường B. Xem thêm mục 5.
 
 Đường B khuyên dùng cho lô lớn: bạn soi trước 1 ảnh rồi mới chạy 200 ảnh, đỡ phải làm lại.
 
+**Khung đỏ khoanh sai chỗ? Kéo chuột khoanh lại ngay trên ảnh bên trái.** Khoanh xong
+nó vá thử lại liền, và khung bạn vẽ được dùng cho toàn bộ ảnh trong gói. Bấm
+**Phóng to chỗ đang khoanh** để soi kỹ trước/sau ở mức pixel — với logo bé như dấu ✦
+của Flow thì nhìn ảnh thu nhỏ không thấy gì đâu.
+
 ## 3. Cài đặt
 
 | Mục | Nên chọn | Giải thích |
 |---|---|---|
 | **Watermark nằm ở đâu** | Tự động dò | So nhiều ảnh cùng bộ, chỗ nào ảnh nào cũng có nét sắc thì đó là logo. Cần ≥ 3 ảnh cùng kích thước, nền khác nhau |
-| | Góc dưới bên phải… | Chọn tay khi tự động dò không ra, hoặc gói ít ảnh |
+| | **Logo nhỏ góc dưới phải** | Ô vuông nhỏ ở góc — đúng chỗ dấu ✦ của Flow / Gemini. Chọn cái này nếu tự động dò trượt |
+| | Cả góc dưới bên phải… | Ô to hơn, cho watermark dạng chữ dài |
 | | Gõ toạ độ `x,y,rộng,cao` | Khi bạn đã biết chính xác khung |
+| | *Kéo chuột trên ảnh* | Chắc ăn nhất — khoanh tay đúng chỗ, không cần đoán |
 | **Chỉ vá đúng nét chữ** | Vá cả ô | Chắc ăn, hợp với logo nhiều màu |
 | | Chỉ nét sáng / trắng | Đẹp hơn với watermark chữ trắng — nền trong ô giữ nguyên |
 | **Cách xử lý** | Vá lại nền | Lấy màu và hướng chuyển màu từ viền quanh vá vào |
@@ -98,6 +105,21 @@ Trong popup có mục **Chẩn đoán**:
 
 Gửi tôi mấy dòng đó là biết Flow tải kiểu gì để sửa cho khớp. Trong lúc chờ thì
 cứ dùng đường B, kết quả y hệt.
+
+## 5b. Tự động dò khoanh nhầm chỗ
+
+Bộ dò tìm những nét **ảnh nào trong bộ cũng có**. Ảnh kiểu kênh bạn (nền xanh đậm,
+dải đất vàng ở dưới) có sẵn một **đường ranh ngang chạy hết chiều ngang** nằm đúng
+một chỗ ở mọi ảnh — nhìn qua con mắt thuật toán thì nó "giống watermark" y như cái
+logo thật.
+
+Nên bộ dò loại thẳng những thứ này trước khi chọn: vệt dài hết ngang mà mỏng, vệt dài
+hết dọc mà hẹp, và mọi khối lớn hơn 15% diện tích ảnh. Còn lại nó chấm điểm theo độ
+sắc nét, độ gọn và mức độ nằm sát rìa ảnh — logo thật gần như luôn là một đốm nhỏ,
+gọn, nằm sát mép.
+
+Vẫn trượt thì đừng chỉnh tới lui làm gì: **kéo chuột khoanh tay** trên ảnh soi trước,
+hoặc chọn *Logo nhỏ góc dưới phải*. Xong.
 
 Vài trường hợp tiện ích **cố ý không chặn**: trang tự đặt `location.href` sang link
 tải, hoặc file tải qua một tab khác. Chặn mấy chỗ đó dễ làm hỏng thao tác khác của

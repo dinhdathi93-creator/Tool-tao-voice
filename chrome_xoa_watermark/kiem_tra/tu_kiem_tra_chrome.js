@@ -11,6 +11,7 @@ const path = require("path");
 const { chromium } = require("playwright");
 
 const { anhGia, danWatermark, ghiPng } = require("./anh_gia.js");
+const { anhKieuFlow, danSaoGoc } = require("./anh_kieu_flow.js");
 const ZIP = require("../zip.js");
 
 const GOC_EXT = path.resolve(__dirname, "..");
@@ -19,6 +20,26 @@ const SO_ANH = 6;
 
 const loi = [];
 function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
+
+async function dungGoiKieuFlow(thuMuc) {
+  const sach = [];
+  const muc = [];
+  let sao = null;
+  for (let i = 0; i < 4; i++) {
+    const goc = anhKieuFlow(i * 13 + 5);
+    sach.push(ghiPng(goc));
+    const ban = danSaoGoc(goc);
+    sao = ban.sao;
+    muc.push({
+      ten: `flow/anh_${String(i + 1).padStart(3, "0")}.png`,
+      du_lieu: new Uint8Array(ghiPng(ban)),
+    });
+  }
+  const blob = await ZIP.taoZip(muc);
+  const duongDan = path.join(thuMuc, "du_an_kieu_flow.zip");
+  fs.writeFileSync(duongDan, Buffer.from(await blob.arrayBuffer()));
+  return { duongDan, sach, sao };
+}
 
 async function dungGoiThu(thuMuc) {
   const sach = [];
@@ -174,6 +195,50 @@ async function dungGoiThu(thuMuc) {
     }));
     kiem(daBat, "bam nut gat trong popup khong luu duoc trang thai");
     kiem(loiPopup.length === 0, "popup co loi JS: " + loiPopup.join(" | "));
+
+    // --- 5. Goi anh KIEU FLOW: logo chi la dau sao nho o goc ----------------
+    const flow = await dungGoiKieuFlow(thuMuc);
+    console.log(`   Goi kieu Flow: 4 anh 1376x768, dau sao that o `
+      + `${JSON.stringify(flow.sao)}`);
+    const t2 = await trinhDuyet.newPage();
+    const loiT2 = [];
+    t2.on("pageerror", (er) => loiT2.push(er.message));
+    await t2.goto(`chrome-extension://${maExt}/xu_ly_goi.html`);
+    await t2.setInputFiles("#file", flow.duongDan);
+    await t2.waitForSelector("#xemTruoc:not(.an)", { timeout: 60000 });
+
+    const moTa2 = await t2.textContent("#motaVung");
+    console.log(`   ${moTa2.trim()}`);
+    const so2 = moTa2.match(/x=(\d+), y=(\d+), rộng=(\d+), cao=(\d+)/);
+    kiem(!!so2, "[kieu Flow] khong doc duoc toa do vung");
+    if (so2) {
+      const v = { x: +so2[1], y: +so2[2], w: +so2[3], h: +so2[4] };
+      const tamX = flow.sao.x + flow.sao.w / 2, tamY = flow.sao.y + flow.sao.h / 2;
+      kiem(v.x <= tamX && tamX <= v.x + v.w && v.y <= tamY && tamY <= v.y + v.h,
+           `[kieu Flow] vung tu do (${JSON.stringify(v)}) khong trum dau sao`);
+      kiem(v.w * v.h <= 8 * flow.sao.w * flow.sao.h,
+           `[kieu Flow] khoanh qua rong: ${JSON.stringify(v)} - co ve bam nham duong ranh nen/dat`);
+    }
+
+    // keo chuot khoanh tay tren anh xem truoc -> vung phai doi theo
+    await t2.locator("#canvasKhung").scrollIntoViewIfNeeded();
+    const hop = await t2.locator("#canvasKhung").boundingBox();
+    await t2.mouse.move(hop.x + hop.width * 0.10, hop.y + hop.height * 0.10);
+    await t2.mouse.down();
+    await t2.mouse.move(hop.x + hop.width * 0.30, hop.y + hop.height * 0.40, { steps: 8 });
+    await t2.mouse.up();
+    const moTa3 = await t2.textContent("#motaVung");
+    kiem(moTa3.includes("bạn tự khoanh tay"), "keo chuot khoanh vung khong an");
+    const so3 = moTa3.match(/x=(\d+), y=(\d+), rộng=(\d+), cao=(\d+)/);
+    if (so3) {
+      const v = { x: +so3[1], y: +so3[2], w: +so3[3], h: +so3[4] };
+      console.log(`   Keo chuot 10%-30% ngang, 10%-40% doc -> vung ${JSON.stringify(v)}`);
+      kiem(Math.abs(v.x - 0.10 * 1376) < 30 && Math.abs(v.y - 0.10 * 768) < 30,
+           `[keo chuot] goc tren trai lech qua nhieu: ${JSON.stringify(v)}`);
+      kiem(Math.abs(v.w - 0.20 * 1376) < 40 && Math.abs(v.h - 0.30 * 768) < 40,
+           `[keo chuot] kich thuoc lech qua nhieu: ${JSON.stringify(v)}`);
+    }
+    kiem(loiT2.length === 0, "trang kieu Flow co loi JS: " + loiT2.join(" | "));
 
     kiem(loiTrang.length === 0, "trang xu ly co loi JS: " + loiTrang.join(" | "));
   } catch (er) {

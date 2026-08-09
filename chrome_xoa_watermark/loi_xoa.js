@@ -15,6 +15,10 @@
 
   var GOC_MAC_DINH = {
     "tu-dong": null,
+    "logo-duoi-phai": [0.90, 0.88, 0.10, 0.12],
+    "logo-duoi-trai": [0.00, 0.88, 0.10, 0.12],
+    "logo-tren-phai": [0.90, 0.00, 0.10, 0.12],
+    "logo-tren-trai": [0.00, 0.00, 0.10, 0.12],
     "duoi-phai": [0.70, 0.86, 0.30, 0.14],
     "duoi-trai": [0.00, 0.86, 0.30, 0.14],
     "tren-phai": [0.70, 0.00, 0.30, 0.14],
@@ -199,7 +203,7 @@
    * Tra { vung, ghi_chu } - vung = null nghia la khong chac chan.
    */
   function timVungTuDong(cacAnh, toiDaTiLe) {
-    toiDaTiLe = toiDaTiLe || 0.35;
+    toiDaTiLe = toiDaTiLe || 0.15;
     if (!cacAnh || cacAnh.length < 3) {
       return { vung: null, ghi_chu: "can it nhat 3 anh cung kich thuoc de tu do vi tri" };
     }
@@ -252,21 +256,56 @@
       return { vung: null, ghi_chu: "khong thay net nao xuat hien o tat ca cac anh" };
     }
 
-    var cum = cacCum(noRongMatNa(ungVien, rNho, cNho, 3), rNho, cNho);
+    var cum = cacCum(noRongMatNa(ungVien, rNho, cNho, 2), rNho, cNho);
     if (!cum.length) return { vung: null, ghi_chu: "khong gom duoc thanh cum" };
 
-    var gom = [cum[0]];
+    // Loc bo nhung thu "anh nao cung co" nhung KHONG phai watermark: duong ranh
+    // giua nen va dat, khung vien, thanh mau chay het chieu ngang... Watermark
+    // that la mot dom NHO, GON, thuong nam sat ria anh.
     var toiDa = toiDaTiLe * n;
-    for (var c2 = 1; c2 < cum.length; c2++) {
-      if (cum[c2].length < 0.2 * cum[0].length) continue;
-      var thu = baoQuanh(gom.concat([cum[c2]]), rNho);
-      if (thu.w * thu.h <= toiDa) gom.push(cum[c2]);
+    var ungVienCum = [];
+    for (var c2 = 0; c2 < cum.length; c2++) {
+      var diem = cum[c2];
+      var bb = baoQuanh([diem], rNho);
+      if (bb.w > 0.6 * rNho && bb.h < 0.08 * cNho) continue;   // duong ke ngang
+      if (bb.h > 0.6 * cNho && bb.w < 0.08 * rNho) continue;   // duong ke doc
+      if (bb.w > 0.5 * rNho || bb.h > 0.5 * cNho) continue;    // qua rong / qua cao
+      if (bb.w * bb.h > toiDa) continue;                       // qua to so voi ca anh
+
+      var tong = 0;
+      for (var k = 0; k < diem.length; k++) tong += chung[diem[k]];
+      var manh = tong / diem.length;                           // net cang manh cang chac
+      var dac = diem.length / (bb.w * bb.h);                   // cang gon cang giong logo
+      var riaX = Math.min(bb.x, rNho - (bb.x + bb.w));
+      var riaY = Math.min(bb.y, cNho - (bb.y + bb.h));
+      var sanRia = (riaX < 0.15 * rNho || riaY < 0.15 * cNho) ? 1.6 : 1.0;
+      ungVienCum.push({
+        diem: diem, bb: bb,
+        diem_so: manh * Math.sqrt(diem.length) * (0.6 + 0.4 * dac) * sanRia,
+      });
+    }
+    if (!ungVienCum.length) {
+      return {
+        vung: null,
+        ghi_chu: "chi thay duong ke / mang lon giong nhau giua cac anh, khong thay logo nho nao",
+      };
+    }
+    ungVienCum.sort(function (a, b) { return b.diem_so - a.diem_so; });
+
+    // gop them cum ke ben (logo va chu thuong tach roi), khong voi ra xa
+    var gom = [ungVienCum[0].diem];
+    var khoangCach = 0.03 * rNho;
+    for (var c3 = 1; c3 < ungVienCum.length; c3++) {
+      if (ungVienCum[c3].diem_so < 0.25 * ungVienCum[0].diem_so) continue;
+      var dang = baoQuanh(gom, rNho), b2 = ungVienCum[c3].bb;
+      var cachX = Math.max(0, Math.max(dang.x - (b2.x + b2.w), b2.x - (dang.x + dang.w)));
+      var cachY = Math.max(0, Math.max(dang.y - (b2.y + b2.h), b2.y - (dang.y + dang.h)));
+      if (cachX > khoangCach || cachY > khoangCach) continue;
+      var thu = baoQuanh(gom.concat([ungVienCum[c3].diem]), rNho);
+      if (thu.w * thu.h <= toiDa) gom.push(ungVienCum[c3].diem);
     }
 
     var vNho = baoQuanh(gom, rNho);
-    if (vNho.w * vNho.h > toiDa) {
-      return { vung: null, ghi_chu: "vung tim duoc qua to (>35% anh), co ve khong phai watermark" };
-    }
 
     var hsX = rong / rNho, hsY = cao / cNho;
     var vung = noVung({

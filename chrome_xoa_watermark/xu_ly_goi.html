@@ -26,10 +26,14 @@
         <label for="vung">Watermark nằm ở đâu</label>
         <select id="vung">
           <option value="tu-dong">Tự động dò (cần ≥ 3 ảnh cùng bộ)</option>
-          <option value="duoi-phai">Góc dưới bên phải</option>
-          <option value="duoi-trai">Góc dưới bên trái</option>
-          <option value="tren-phai">Góc trên bên phải</option>
-          <option value="tren-trai">Góc trên bên trái</option>
+          <option value="logo-duoi-phai">Logo nhỏ góc dưới phải (dấu ✦ của Flow)</option>
+          <option value="logo-duoi-trai">Logo nhỏ góc dưới trái</option>
+          <option value="logo-tren-phai">Logo nhỏ góc trên phải</option>
+          <option value="logo-tren-trai">Logo nhỏ góc trên trái</option>
+          <option value="duoi-phai">Cả góc dưới bên phải</option>
+          <option value="duoi-trai">Cả góc dưới bên trái</option>
+          <option value="tren-phai">Cả góc trên bên phải</option>
+          <option value="tren-trai">Cả góc trên bên trái</option>
           <option value="duoi">Cả dải dưới</option>
           <option value="tren">Cả dải trên</option>
           <option value="giua">Chính giữa</option>
@@ -62,12 +66,20 @@
     <h2>Soi trước khi chạy</h2>
     <p id="motaVung" class="mota"></p>
     <div class="canh-canh">
-      <figure><figcaption>Vùng tool sẽ vá</figcaption><canvas id="canvasKhung"></canvas></figure>
+      <figure>
+        <figcaption><b>Kéo chuột trên ảnh này để tự khoanh vùng</b> — chắc ăn nhất</figcaption>
+        <canvas id="canvasKhung"></canvas>
+      </figure>
       <figure><figcaption>Thử vá 1 ảnh</figcaption><canvas id="canvasSach"></canvas></figure>
     </div>
     <div class="hang-nut">
       <button id="chay" class="nut-chinh" type="button">Xử lý toàn bộ và tải xuống</button>
+      <button id="phongTo" class="nut-phu" type="button">Phóng to chỗ đang khoanh</button>
       <button id="lamLai" class="nut-phu" type="button">Đổi cài đặt, soi lại</button>
+    </div>
+    <div id="hopPhongTo" class="an phong-to">
+      <figure><figcaption>Trước</figcaption><canvas id="zoomTruoc"></canvas></figure>
+      <figure><figcaption>Sau khi vá</figcaption><canvas id="zoomSau"></canvas></figure>
     </div>
   </section>
 

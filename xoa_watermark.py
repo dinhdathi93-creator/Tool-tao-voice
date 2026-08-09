@@ -16,6 +16,9 @@ Hoac:
 Chon VUNG (--vung):
   tu-dong                 tu do vi tri watermark bang cach so nhieu anh cung bo
                           (can it nhat 3 anh cung kich thuoc, watermark dung yen)
+  logo-duoi-phai | logo-duoi-trai | logo-tren-phai | logo-tren-trai
+                          o vuong nho o goc - dung cho logo nho kieu dau sao
+                          cua Flow / Gemini
   duoi-phai | duoi-trai | tren-phai | tren-trai | duoi | tren | giua
   x,y,w,h                 toa do pixel, vi du 1520,980,380,80
   x%,y%,w%,h%             theo phan tram, vi du 78%,88%,21%,10%
@@ -75,6 +78,12 @@ DUOI_VIDEO = {".mp4", ".mov", ".mkv", ".avi", ".webm"}
 
 # khung mac dinh cho tung goc: (x, y, rong, cao) theo ti le anh
 GOC_MAC_DINH = {
+    # logo nho xiu o goc (kieu dau sao cua Flow / Gemini)
+    "logo-duoi-phai": (0.90, 0.88, 0.10, 0.12),
+    "logo-duoi-trai": (0.00, 0.88, 0.10, 0.12),
+    "logo-tren-phai": (0.90, 0.00, 0.10, 0.12),
+    "logo-tren-trai": (0.00, 0.00, 0.10, 0.12),
+    # ca goc anh (watermark chu, dai hon)
     "duoi-phai": (0.70, 0.86, 0.30, 0.14),
     "duoi-trai": (0.00, 0.86, 0.30, 0.14),
     "tren-phai": (0.70, 0.00, 0.30, 0.14),
@@ -525,7 +534,7 @@ def _bao_quanh(cac_diem: Sequence[np.ndarray]) -> Vung:
 
 
 def tim_vung_tu_dong(
-    cac_anh: Sequence[np.ndarray], toi_da_ti_le: float = 0.35
+    cac_anh: Sequence[np.ndarray], toi_da_ti_le: float = 0.15
 ) -> tuple[Vung | None, str]:
     """So nhieu anh cung bo: net nao CO MAT O MOI ANH thi do la watermark.
 
@@ -564,22 +573,53 @@ def tim_vung_tu_dong(
     if ung_vien.sum() < 8:
         return None, "khong thay net nao xuat hien o tat ca cac anh"
 
-    cum = _cac_cum(_no_rong(ung_vien, 3))
+    cum = _cac_cum(_no_rong(ung_vien, 2))
     if not cum:
         return None, "khong gom duoc thanh cum"
 
-    # gop them cac cum nho gan do (logo + chu thuong tach roi nhau)
-    gom = [cum[0]]
+    # Loc bo nhung thu "anh nao cung co" nhung KHONG phai watermark: duong ranh
+    # giua nen va dat, khung vien, thanh mau chay het chieu ngang... Watermark
+    # that la mot dom NHO, GON, thuong nam sat ria anh.
     toi_da = toi_da_ti_le * r_nho * c_nho
-    for c in cum[1:]:
-        if len(c) < 0.2 * len(cum[0]):
+    ung_cu: list[tuple[float, np.ndarray, Vung]] = []
+    for diem in cum:
+        bb = _bao_quanh([diem])
+        if bb.w > 0.6 * r_nho and bb.h < 0.08 * c_nho:   # duong ke ngang
             continue
-        if _bao_quanh(gom + [c]).dien_tich <= toi_da:
-            gom.append(c)
+        if bb.h > 0.6 * c_nho and bb.w < 0.08 * r_nho:   # duong ke doc
+            continue
+        if bb.w > 0.5 * r_nho or bb.h > 0.5 * c_nho:     # qua rong / qua cao
+            continue
+        if bb.dien_tich > toi_da:                        # qua to so voi ca anh
+            continue
+
+        manh = float(net_chung[diem[:, 0], diem[:, 1]].mean())  # net cang manh cang chac
+        dac = len(diem) / max(1, bb.dien_tich)                  # cang gon cang giong logo
+        ria_x = min(bb.x, r_nho - (bb.x + bb.w))
+        ria_y = min(bb.y, c_nho - (bb.y + bb.h))
+        sat_ria = 1.6 if (ria_x < 0.15 * r_nho or ria_y < 0.15 * c_nho) else 1.0
+        ung_cu.append((manh * math.sqrt(len(diem)) * (0.6 + 0.4 * dac) * sat_ria, diem, bb))
+
+    if not ung_cu:
+        return None, ("chi thay duong ke / mang lon giong nhau giua cac anh,"
+                      " khong thay logo nho nao")
+    ung_cu.sort(key=lambda m: m[0], reverse=True)
+
+    # gop them cum ke ben (logo va chu thuong tach roi), khong voi ra xa
+    gom = [ung_cu[0][1]]
+    khoang_cach = 0.03 * r_nho
+    for diem_so, diem, bb in ung_cu[1:]:
+        if diem_so < 0.25 * ung_cu[0][0]:
+            continue
+        dang = _bao_quanh(gom)
+        cach_x = max(0, max(dang.x - (bb.x + bb.w), bb.x - (dang.x + dang.w)))
+        cach_y = max(0, max(dang.y - (bb.y + bb.h), bb.y - (dang.y + dang.h)))
+        if cach_x > khoang_cach or cach_y > khoang_cach:
+            continue
+        if _bao_quanh(gom + [diem]).dien_tich <= toi_da:
+            gom.append(diem)
 
     v_nho = _bao_quanh(gom)
-    if v_nho.dien_tich > toi_da:
-        return None, "vung tim duoc qua to (>35% anh), co ve khong phai watermark"
 
     he_so_x, he_so_y = rong / r_nho, cao / c_nho
     vung = Vung(
@@ -833,6 +873,53 @@ def _anh_gia(hat: int, rong: int = 480, cao: int = 270) -> np.ndarray:
     return np.clip(anh, 0, 255).astype(np.uint8)
 
 
+def _anh_kieu_flow(hat: int, rong: int = 1376, cao: int = 768) -> np.ndarray:
+    """Anh dung kieu Flow cua kenh: nen xanh dam, dai dat vang o duoi, hinh que.
+
+    Cai bay o day: dai dat vang tao ra mot duong ranh NGANG dai het anh, nam dung
+    mot cho o moi anh - y het watermark ve mat "net nao cung co". Bo do vung phai
+    phan biet duoc no voi cai logo nho o goc.
+    """
+    rng = np.random.default_rng(hat)
+    anh = np.zeros((cao, rong, 3), dtype=np.uint8)
+    anh[:, :] = (26, 42, 74)
+    dat = int(cao * 0.87)
+    anh[dat:, :] = (247, 196, 39)
+
+    im = Image.fromarray(anh)
+    but = ImageDraw.Draw(im)
+    for _ in range(int(rng.integers(2, 5))):  # vai hinh que, moi anh moi cho
+        x = int(rng.integers(80, rong - 220))
+        y = int(rng.integers(int(cao * 0.25), dat - 120))
+        c = int(rng.integers(70, 160))
+        but.line([x, y, x, y + c * 0.55], fill=(255, 255, 255), width=max(3, c // 22))
+        but.ellipse([x - 12, y - 26, x + 12, y - 2], outline=(255, 255, 255), width=3)
+        but.line([x, y + c * 0.55, x - c * 0.3, y + c], fill=(255, 255, 255), width=3)
+        but.line([x, y + c * 0.55, x + c * 0.3, y + c], fill=(255, 255, 255), width=3)
+    if rng.random() > 0.3:
+        x0 = int(rng.integers(0, rong - 260))
+        y0 = int(rng.integers(dat - 320, dat - 120))
+        but.rectangle([x0, y0, x0 + int(rng.integers(90, 240)), y0 + int(rng.integers(70, 160))],
+                      fill=(247, 196, 39))
+    return np.array(im, dtype=np.uint8)
+
+
+def _dan_sao_goc(anh: np.ndarray, le: int = 26, canh: int = 30) -> tuple[np.ndarray, Vung]:
+    """Dan dau sao trang nho o goc duoi ben phai - dung kieu Flow / Gemini dan vao."""
+    cao, rong = anh.shape[:2]
+    v = Vung(rong - le - canh, cao - le - canh, canh, canh)
+    im = Image.fromarray(anh.copy())
+    but = ImageDraw.Draw(im)
+    tam_x, tam_y, r = v.x + canh / 2, v.y + canh / 2, canh / 2
+    for i in range(4):  # 4 canh sao
+        goc_x = [tam_x, tam_x + r, tam_x, tam_x - r][i]
+        goc_y = [tam_y - r, tam_y, tam_y + r, tam_y][i]
+        ke_x = [tam_x + r * 0.28, tam_x + r * 0.28, tam_x - r * 0.28, tam_x - r * 0.28][i]
+        ke_y = [tam_y - r * 0.28, tam_y + r * 0.28, tam_y + r * 0.28, tam_y - r * 0.28][i]
+        but.polygon([(tam_x, tam_y), (goc_x, goc_y), (ke_x, ke_y)], fill=(255, 255, 255))
+    return np.array(im, dtype=np.uint8), v
+
+
 def _dan_watermark(anh: np.ndarray, vung: Vung, dam: float = 0.85) -> np.ndarray:
     """Dan chu trang mo mo vao dung khung 'vung' - gia lam watermark."""
     im = Image.fromarray(anh.copy())
@@ -896,6 +983,26 @@ def tu_kiem_tra() -> int:
     that_hd = Vung(700, 640, 240, 60)
     ban_hd = [_dan_watermark(_anh_gia(50 + i, 1280, 720), that_hd) for i in range(5)]
     _thu_do(ban_hd, that_hd, "1280x720")
+
+    # anh kieu Flow: logo chi la dau sao nho o goc, nhung anh nao cung co mot
+    # duong ranh nen/dat chay het chieu ngang - khong duoc bam nham vao do
+    flow = []
+    sao = Vung(0, 0, 1, 1)
+    for i in range(3):
+        a, sao = _dan_sao_goc(_anh_kieu_flow(200 + i))
+        flow.append(a)
+    do_sao, ghi_chu_sao = tim_vung_tu_dong(flow)
+    if do_sao is None:
+        loi.append(f"[kieu Flow] khong do duoc dau sao goc ({ghi_chu_sao})")
+    else:
+        log.info("   Tu do vi tri (kieu Flow): %s | that: %s", do_sao, sao)
+        if do_sao.dien_tich > 8 * sao.dien_tich:
+            loi.append(f"[kieu Flow] khoanh qua rong: {do_sao} trong khi logo chi la {sao}"
+                       " (co ve bam nham duong ranh nen/dat)")
+        tam_x, tam_y = sao.x + sao.w / 2, sao.y + sao.h / 2
+        if not (do_sao.x <= tam_x <= do_sao.x + do_sao.w
+                and do_sao.y <= tam_y <= do_sao.y + do_sao.h):
+            loi.append(f"[kieu Flow] vung tu do ({do_sao}) khong trum dau sao ({sao})")
 
     if tim_vung_tu_dong(ban[:2])[0] is not None:
         loi.append("chi co 2 anh thi phai tu choi tu do vi tri")
@@ -1021,8 +1128,8 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     )
     p.add_argument("dau_vao", nargs="*", help="Anh/video hoac thu muc (mac dinh: WM_CHO)")
     p.add_argument("--vung", default="tu-dong",
-                   help="tu-dong | duoi-phai | duoi-trai | tren-phai | tren-trai | duoi | tren "
-                        "| giua | x,y,w,h (pixel hoac %%)")
+                   help="tu-dong | logo-duoi-phai (logo nho o goc) | duoi-phai | duoi-trai "
+                        "| tren-phai | tren-trai | duoi | tren | giua | x,y,w,h (pixel hoac %%)")
     p.add_argument("--cach", default="va", choices=["va", "to", "cat", "nhoe"],
                    help="va (mac dinh) | to | cat | nhoe")
     p.add_argument("--loc-mau", dest="loc_mau", default="tat",
