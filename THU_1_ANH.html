@@ -50,6 +50,9 @@ input[type="text"] { margin-top: 6px; }
 .ghi-chu { margin-top: 16px; font-size: 12px; color: #9aa0a6; }
 .canh-bao { margin-top: 16px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
   background: #2b2416; border: 1px solid #5c4a1e; color: #fdd663; }
+.canh-bao.nang { background: #2d1618; border-color: #6b2126; color: #f28b82;
+  font-size: 14px; line-height: 1.6; }
+.nut-chinh.mo { background: #3c4043; color: #9aa0a6; }
 .ghi-chu b { color: #e8eaed; }
 </style>
 </head>
@@ -533,7 +536,18 @@ input[type="text"] { margin-top: 6px; }
         var canh = Math.max(bb.w, bb.h);
         if (canh < 8 || canh > 0.55 * Math.min(oW, oH)) continue;   // khong phai logo nho
         if (bb.w > 0.07 * W || bb.h > 0.07 * H) continue;           // dinh vao vat the
-        if (bb.w > 4 * bb.h || bb.h > 4 * bb.w) continue;           // dai ngoang -> bo
+        // Logo goc gan nhu luon vuong vuong. Dom det 4:1 thuong la mot manh vat
+        // the (ban chan hinh que la 60x15) chu khong phai logo -> that chat lai.
+        if (bb.w > 2.5 * bb.h || bb.h > 2.5 * bb.w) continue;
+        // Cham vao canh TRONG cua o goc = dom nay tran ra ngoai, tuc la mot
+        // manh cua vat the to hon (ban chan hinh que noi len cai cang) chu
+        // khong phai cai logo. Canh nao trung mep anh thi khong tinh - logo
+        // that hay nam sat mep. Day la cho bo do cu bam nham vao ban chan
+        // trang: no sang hon nen 160 muc, hon han cai watermark mo.
+        if ((bb.x <= 0 && oX > 0)
+            || (bb.y <= 0 && oY > 0)
+            || (bb.x + bb.w >= oW && oX + oW < W)
+            || (bb.y + bb.h >= oH && oY + oH < H)) continue;
         var dac = diem.length / (bb.w * bb.h);
         if (dac < 0.15) continue;
 
@@ -1581,6 +1595,36 @@ input[type="text"] { margin-top: 6px; }
     var mh = (cd.cach === "tu-dong" || cd.cach === "go") ? layMoHinh(tuTim) : null;
     if (mh && tuTim) ghiChu = "chính lớp phủ chỉ ra chỗ logo";
     var cachDaDung;
+
+    /* CHUA DU ANH THI KHONG XOA BUA.
+     *
+     * Voi mot anh don, khong cach nao phan biet duoc cai logo mo voi net trang
+     * cua chinh hinh ve - do lai la ban chan hinh que roi va nat cho do trong
+     * khi logo con nguyen. Ma cho nao logo de len vat the thi va kieu gi cung
+     * lo (do duoc: khung dung sat logo van con lech 10/255, khung rong hon thi
+     * 22-75/255). Chi go lop phu moi sach, ma no can >= 4 anh.
+     *
+     * Nen tha noi thang la chua du anh con hon tra ve mot anh hong.
+     */
+    if (!mh && cd.cach === "tu-dong" && tuTim
+        && cungCoAnh().length < LOI.SO_ANH_TOI_THIEU) {
+      anhSach = anhGoc;
+      e("mota").textContent = "Ảnh " + anhGoc.rong + "×" + anhGoc.cao
+        + " — chưa xoá gì cả: mới có " + cungCoAnh().length + " ảnh, cần "
+        + LOI.SO_ANH_TOI_THIEU + " ảnh cùng dự án trở lên.";
+      e("canhBao").className = "canh-bao nang";
+      e("canhBao").innerHTML = "⛔ <b>Chưa đủ ảnh để xoá sạch — tool để nguyên ảnh, "
+        + "không đụng vào.</b><br>Với một ảnh đơn, không cách nào phân biệt được cái "
+        + "logo mờ với nét trắng của chính hình vẽ (bàn chân hình que còn sáng hơn "
+        + "watermark nhiều), nên vá vào là nát chỗ đó mà logo vẫn còn. "
+        + "<b>Thả đủ " + LOI.SO_ANH_TOI_THIEU + " ảnh cùng dự án</b> (kéo cả nhóm cùng "
+        + "lúc) là tool học ra đúng lớp phủ và gỡ sạch — kể cả ảnh logo đè lên chân "
+        + "người. Hoặc <b>kéo chuột khoanh tay</b> quanh logo nếu bạn muốn vá thử ngay "
+        + "trên ảnh này.";
+      veAnhRa(ghiChu, false);
+      return;
+    }
+
     if (mh) {
       anhSach = LOI.goLopPhu(anhGoc, mh);
       cachDaDung = "gỡ lớp phủ, học từ " + mh.so_anh + " ảnh";
@@ -1599,6 +1643,7 @@ input[type="text"] { margin-top: 6px; }
       + " — cách: " + cachDaDung
       + (ghiChu === "keo-tay" ? " (bạn tự khoanh)"
          : (ghiChu && ghiChu !== "doi-cai-dat" ? " (" + ghiChu + ")" : ""));
+    e("canhBao").className = "canh-bao";
 
     // Khung to bat thuong = dang trum ca noi dung that (bac thang, nguoi...).
     // Va cho do thi kieu gi cung lo, nen phai noi ngay chu khong de nguoi dung
@@ -1629,6 +1674,11 @@ input[type="text"] { margin-top: 6px; }
       e("canhBao").classList.add("an");
     }
 
+    veAnhRa(ghiChu, !!mh, mh);
+  }
+
+  /** Ve hai khung anh, hai o phong to, va cap nhat nut tai ve. */
+  function veAnhRa(ghiChu, daXoa, mh) {
     ve(e("cKhung"), LOI.veKhung(anhGoc, vung));
     ve(e("cSach"), anhSach);
 
@@ -1645,9 +1695,13 @@ input[type="text"] { margin-top: 6px; }
     var kieu = /\.jpe?g$/i.test(tenFile) ? "image/jpeg" : "image/png";
     e("taiVe").href = canvasSach.toDataURL(kieu, 0.95);
     e("taiVe").download = tenFile.replace(/(\.[a-z0-9]+)$/i, "_da_xoa$1");
+    e("taiVe").textContent = daXoa ? "⬇ Tải ảnh đã xoá" : "⬇ Tải ảnh (chưa xoá được gì)";
+    e("taiVe").classList.toggle("mo", !daXoa);
 
-    e("ghiChu").innerHTML =
-      (mh
+    e("ghiChu").innerHTML = !daXoa
+      ? "Kéo cả nhóm ảnh vào ô thả bên trên là xong — tool chỉ cần <b>"
+        + LOI.SO_ANH_TOI_THIEU + " ảnh cùng dự án, cùng kích thước</b> là gỡ được lớp phủ."
+      : ((mh
         ? "Đang <b>gỡ lớp phủ</b>: tool học từ " + mh.so_anh + " ảnh ra đúng độ mờ và màu của "
           + "logo (" + mh.so_diem + " điểm ảnh dính logo), rồi trừ ngược lại. Chỗ nào không có "
           + "logo thì giữ nguyên từng pixel — nên người, bậc thang, đường ranh màu trong khung "
@@ -1656,7 +1710,7 @@ input[type="text"] { margin-top: 6px; }
       + "Ưng rồi thì bấm <b>Chép toạ độ vùng</b> — dán chuỗi <code>" + vung.x + "," + vung.y
       + "," + vung.w + "," + vung.h + "</code> vào ô <i>“hoặc gõ x,y,rộng,cao”</i> của tiện ích "
       + "để cả dự án dùng đúng khung này. Toạ độ chỉ đúng cho ảnh cùng kích thước "
-      + anhGoc.rong + "×" + anhGoc.cao + ".";
+      + anhGoc.rong + "×" + anhGoc.cao + ".");
   }
 
   function docMotAnh(f) {

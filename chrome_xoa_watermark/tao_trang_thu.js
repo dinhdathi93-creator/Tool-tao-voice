@@ -155,6 +155,9 @@ input[type="text"] { margin-top: 6px; }
 .ghi-chu { margin-top: 16px; font-size: 12px; color: #9aa0a6; }
 .canh-bao { margin-top: 16px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
   background: #2b2416; border: 1px solid #5c4a1e; color: #fdd663; }
+.canh-bao.nang { background: #2d1618; border-color: #6b2126; color: #f28b82;
+  font-size: 14px; line-height: 1.6; }
+.nut-chinh.mo { background: #3c4043; color: #9aa0a6; }
 .ghi-chu b { color: #e8eaed; }
 `;
 
@@ -321,6 +324,36 @@ const DIEU_KHIEN = String.raw`
     var mh = (cd.cach === "tu-dong" || cd.cach === "go") ? layMoHinh(tuTim) : null;
     if (mh && tuTim) ghiChu = "chính lớp phủ chỉ ra chỗ logo";
     var cachDaDung;
+
+    /* CHUA DU ANH THI KHONG XOA BUA.
+     *
+     * Voi mot anh don, khong cach nao phan biet duoc cai logo mo voi net trang
+     * cua chinh hinh ve - do lai la ban chan hinh que roi va nat cho do trong
+     * khi logo con nguyen. Ma cho nao logo de len vat the thi va kieu gi cung
+     * lo (do duoc: khung dung sat logo van con lech 10/255, khung rong hon thi
+     * 22-75/255). Chi go lop phu moi sach, ma no can >= 4 anh.
+     *
+     * Nen tha noi thang la chua du anh con hon tra ve mot anh hong.
+     */
+    if (!mh && cd.cach === "tu-dong" && tuTim
+        && cungCoAnh().length < LOI.SO_ANH_TOI_THIEU) {
+      anhSach = anhGoc;
+      e("mota").textContent = "Ảnh " + anhGoc.rong + "×" + anhGoc.cao
+        + " — chưa xoá gì cả: mới có " + cungCoAnh().length + " ảnh, cần "
+        + LOI.SO_ANH_TOI_THIEU + " ảnh cùng dự án trở lên.";
+      e("canhBao").className = "canh-bao nang";
+      e("canhBao").innerHTML = "⛔ <b>Chưa đủ ảnh để xoá sạch — tool để nguyên ảnh, "
+        + "không đụng vào.</b><br>Với một ảnh đơn, không cách nào phân biệt được cái "
+        + "logo mờ với nét trắng của chính hình vẽ (bàn chân hình que còn sáng hơn "
+        + "watermark nhiều), nên vá vào là nát chỗ đó mà logo vẫn còn. "
+        + "<b>Thả đủ " + LOI.SO_ANH_TOI_THIEU + " ảnh cùng dự án</b> (kéo cả nhóm cùng "
+        + "lúc) là tool học ra đúng lớp phủ và gỡ sạch — kể cả ảnh logo đè lên chân "
+        + "người. Hoặc <b>kéo chuột khoanh tay</b> quanh logo nếu bạn muốn vá thử ngay "
+        + "trên ảnh này.";
+      veAnhRa(ghiChu, false);
+      return;
+    }
+
     if (mh) {
       anhSach = LOI.goLopPhu(anhGoc, mh);
       cachDaDung = "gỡ lớp phủ, học từ " + mh.so_anh + " ảnh";
@@ -339,6 +372,7 @@ const DIEU_KHIEN = String.raw`
       + " — cách: " + cachDaDung
       + (ghiChu === "keo-tay" ? " (bạn tự khoanh)"
          : (ghiChu && ghiChu !== "doi-cai-dat" ? " (" + ghiChu + ")" : ""));
+    e("canhBao").className = "canh-bao";
 
     // Khung to bat thuong = dang trum ca noi dung that (bac thang, nguoi...).
     // Va cho do thi kieu gi cung lo, nen phai noi ngay chu khong de nguoi dung
@@ -369,6 +403,11 @@ const DIEU_KHIEN = String.raw`
       e("canhBao").classList.add("an");
     }
 
+    veAnhRa(ghiChu, !!mh, mh);
+  }
+
+  /** Ve hai khung anh, hai o phong to, va cap nhat nut tai ve. */
+  function veAnhRa(ghiChu, daXoa, mh) {
     ve(e("cKhung"), LOI.veKhung(anhGoc, vung));
     ve(e("cSach"), anhSach);
 
@@ -385,9 +424,13 @@ const DIEU_KHIEN = String.raw`
     var kieu = /\.jpe?g$/i.test(tenFile) ? "image/jpeg" : "image/png";
     e("taiVe").href = canvasSach.toDataURL(kieu, 0.95);
     e("taiVe").download = tenFile.replace(/(\.[a-z0-9]+)$/i, "_da_xoa$1");
+    e("taiVe").textContent = daXoa ? "⬇ Tải ảnh đã xoá" : "⬇ Tải ảnh (chưa xoá được gì)";
+    e("taiVe").classList.toggle("mo", !daXoa);
 
-    e("ghiChu").innerHTML =
-      (mh
+    e("ghiChu").innerHTML = !daXoa
+      ? "Kéo cả nhóm ảnh vào ô thả bên trên là xong — tool chỉ cần <b>"
+        + LOI.SO_ANH_TOI_THIEU + " ảnh cùng dự án, cùng kích thước</b> là gỡ được lớp phủ."
+      : ((mh
         ? "Đang <b>gỡ lớp phủ</b>: tool học từ " + mh.so_anh + " ảnh ra đúng độ mờ và màu của "
           + "logo (" + mh.so_diem + " điểm ảnh dính logo), rồi trừ ngược lại. Chỗ nào không có "
           + "logo thì giữ nguyên từng pixel — nên người, bậc thang, đường ranh màu trong khung "
@@ -396,7 +439,7 @@ const DIEU_KHIEN = String.raw`
       + "Ưng rồi thì bấm <b>Chép toạ độ vùng</b> — dán chuỗi <code>" + vung.x + "," + vung.y
       + "," + vung.w + "," + vung.h + "</code> vào ô <i>“hoặc gõ x,y,rộng,cao”</i> của tiện ích "
       + "để cả dự án dùng đúng khung này. Toạ độ chỉ đúng cho ảnh cùng kích thước "
-      + anhGoc.rong + "×" + anhGoc.cao + ".";
+      + anhGoc.rong + "×" + anhGoc.cao + ".");
   }
 
   function docMotAnh(f) {

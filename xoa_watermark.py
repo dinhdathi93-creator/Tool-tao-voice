@@ -1090,7 +1090,15 @@ def tim_logo_mot_anh(anh: np.ndarray, goc: str | None = None) -> tuple[Vung | No
                 continue
             if bb.w > 0.07 * rong or bb.h > 0.07 * cao:   # dinh vao vat the khac
                 continue
-            if bb.w > 4 * bb.h or bb.h > 4 * bb.w:
+            # Cham canh TRONG cua o goc = dom tran ra ngoai, tuc la mot manh cua
+            # vat the to hon chu khong phai logo. Canh trung mep anh khong tinh.
+            if ((bb.x <= 0 and o_x > 0) or (bb.y <= 0 and o_y > 0)
+                    or (bb.x + bb.w >= o_w and o_x + o_w < rong)
+                    or (bb.y + bb.h >= o_h and o_y + o_h < cao)):
+                continue
+            # Logo goc gan nhu luon vuong vuong. Dom det 4:1 thuong la mot manh
+            # vat the (ban chan hinh que la 60x15) chu khong phai logo.
+            if bb.w > 2.5 * bb.h or bb.h > 2.5 * bb.w:
                 continue
             dac = len(diem) / max(1, bb.dien_tich)
             if dac < 0.15:

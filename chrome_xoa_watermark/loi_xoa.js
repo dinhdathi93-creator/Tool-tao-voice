@@ -381,7 +381,18 @@
         var canh = Math.max(bb.w, bb.h);
         if (canh < 8 || canh > 0.55 * Math.min(oW, oH)) continue;   // khong phai logo nho
         if (bb.w > 0.07 * W || bb.h > 0.07 * H) continue;           // dinh vao vat the
-        if (bb.w > 4 * bb.h || bb.h > 4 * bb.w) continue;           // dai ngoang -> bo
+        // Logo goc gan nhu luon vuong vuong. Dom det 4:1 thuong la mot manh vat
+        // the (ban chan hinh que la 60x15) chu khong phai logo -> that chat lai.
+        if (bb.w > 2.5 * bb.h || bb.h > 2.5 * bb.w) continue;
+        // Cham vao canh TRONG cua o goc = dom nay tran ra ngoai, tuc la mot
+        // manh cua vat the to hon (ban chan hinh que noi len cai cang) chu
+        // khong phai cai logo. Canh nao trung mep anh thi khong tinh - logo
+        // that hay nam sat mep. Day la cho bo do cu bam nham vao ban chan
+        // trang: no sang hon nen 160 muc, hon han cai watermark mo.
+        if ((bb.x <= 0 && oX > 0)
+            || (bb.y <= 0 && oY > 0)
+            || (bb.x + bb.w >= oW && oX + oW < W)
+            || (bb.y + bb.h >= oH && oY + oH < H)) continue;
         var dac = diem.length / (bb.w * bb.h);
         if (dac < 0.15) continue;
 

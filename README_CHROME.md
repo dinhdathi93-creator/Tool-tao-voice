@@ -40,6 +40,11 @@ Xcode mới cài được. Trên Mac cứ dùng Chrome cho việc này.
 Trước khi đụng tới cả dự án 200 ảnh, **bấm đúp `THU_1_ANH.html`** (mở bằng Chrome hoặc
 bất kỳ trình duyệt nào). Không cần cài tiện ích, không cần Developer mode, không cần mạng.
 
+> ⛔ **Dưới 4 ảnh thì tool cố ý không xoá gì cả** — nó để nguyên ảnh và nói thẳng là chưa
+> đủ. Lý do ở mục 4c: với một ảnh đơn, không cách nào phân biệt được cái logo mờ với nét
+> trắng của chính hình vẽ (bàn chân hình que còn sáng hơn watermark nhiều), nên vá vào là
+> nát chỗ đó mà logo vẫn còn. Thà nói thật còn hơn trả về ảnh hỏng.
+
 1. Thả **6–10 ảnh** của cùng dự án vào — nhớ chọn cả mấy ảnh khó (logo đè lên người,
    đè lên đồ vật). Một ảnh cũng chạy được, nhưng **từ 4 ảnh trở lên** mới gỡ được lớp phủ
    (mục 4c), và đó là cách cho kết quả sạch nhất — càng nhiều ảnh càng chắc.
@@ -212,7 +217,24 @@ bộ dò nét sắc báo `75,709` (bàn chân góc dưới trái), còn cách n�
 dấu ✦ thật `1320,712` cỡ `30×30`. Khung nó chỉ ra lấy thẳng từ bản đồ `alpha` nên **ôm sát
 đúng cái logo**, không thừa một pixel.
 
-Không tìm ra thì mới quay về bộ dò nét sắc, rồi vá — như cũ.
+Không tìm ra thì mới quay về bộ dò nét sắc, rồi vá — như cũ. Bộ dò nét sắc cũng được siết
+lại: đốm dẹt quá (tỉ lệ hơn 2,5:1 — bàn chân hình que là 60×15) hoặc tràn ra khỏi ô góc
+đều bị loại, vì đó là mảnh của vật thể to hơn chứ không phải logo.
+
+### Ít hơn 4 ảnh thì không xoá
+
+Đo trên đúng ảnh khó (logo đè lên bàn chân), thử cả ba kiểu khung với cách vá:
+
+| Khung dùng để vá | Lệch quanh logo |
+|---|---|
+| Ô mặc định góc dưới phải | 74,8 |
+| Bộ dò 1 ảnh (bám vào bàn chân) | 22,7 |
+| Khung khoanh sát đúng logo | 10,0 |
+
+Tức là **kể cả khoanh đúng chằn chặn, vá vẫn lộ** khi logo nằm trên vật thể — vì vá phải
+bịa lại chi tiết. Chỉ gỡ lớp phủ mới sạch (0,09), mà nó cần ≥ 4 ảnh. Nên dưới 4 ảnh,
+`THU_1_ANH.html` để nguyên ảnh và hiện cảnh báo đỏ, không xoá bừa. Muốn vá thử ngay trên
+một ảnh thì cứ **kéo chuột khoanh tay** — đó là bạn chủ động chọn.
 
 ### Số đo
 

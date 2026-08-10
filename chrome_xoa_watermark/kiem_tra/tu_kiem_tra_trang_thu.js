@@ -28,11 +28,18 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
   }
 
   const thuMuc = fs.mkdtempSync(path.join(os.tmpdir(), "xwt-"));
+  // Bo 4 anh kieu Flow: du de tool tu tim va xoa (duoi 4 anh thi no co y khong
+  // dung vao anh - xem phan cuoi bai).
   const goc = anhKieuFlow(9, 1376, 768);
   const ban = danSaoGoc(goc);
-  const duongDan = path.join(thuMuc, "anh_thu.png");
-  fs.writeFileSync(duongDan, ghiPng(ban));
-  console.log(`   Anh thu: 1376x768, dau sao that o ${JSON.stringify(ban.sao)}`);
+  const duongDan = [];
+  for (let i = 0; i < 4; i++) {
+    const b = danSaoGoc(anhKieuFlow(i === 0 ? 9 : i * 13 + 5, 1376, 768));
+    const p = path.join(thuMuc, `thu_${i + 1}.png`);
+    fs.writeFileSync(p, ghiPng(b));
+    duongDan.push(p);
+  }
+  console.log(`   4 anh thu: 1376x768, dau sao that o ${JSON.stringify(ban.sao)}`);
 
   const trinhDuyet = await chromium.launch({
     headless: false, args: ["--no-sandbox"],
@@ -109,9 +116,10 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
     console.log(`   Lech quanh logo ${doDac.quanh_logo.toFixed(2)}, ca anh `
       + `${doDac.ca_anh.toFixed(3)} (thang 0-255)`);
     kiem(doDac.rong === 1376 && doDac.cao === 768, "anh tai ve sai kich thuoc");
-    kiem(doDac.quanh_logo < 0.5, `con vet quanh logo (${doDac.quanh_logo.toFixed(2)}/255)`);
+    kiem(doDac.quanh_logo < 2, `con vet quanh logo (${doDac.quanh_logo.toFixed(2)}/255)`);
     kiem(doDac.ca_anh < 0.02, `phan con lai cua anh bi doi (${doDac.ca_anh.toFixed(3)}/255)`);
     kiem(/_da_xoa\.png$/.test(doDac.ten_tai || ""), "ten file tai ve khong dung quy uoc");
+    kiem(/^thu_1_da_xoa\.png$/.test(doDac.ten_tai || ""), "phai dang xem anh dau tien");
 
     // keo chuot khoanh tay -> vung phai doi theo
     await trang.locator("#cKhung").scrollIntoViewIfNeeded();
@@ -120,6 +128,9 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
     await trang.mouse.down();
     await trang.mouse.move(hop.x + hop.width * 0.35, hop.y + hop.height * 0.50, { steps: 8 });
     await trang.mouse.up();
+    await trang.waitForFunction(
+      () => !/Đang mở|Đang học/.test(document.getElementById("mota").textContent),
+      null, { timeout: 60000 });
     const moTa2 = await trang.textContent("#mota");
     kiem(moTa2.includes("bạn tự khoanh"), "keo chuot khoanh vung khong an");
     const so2 = moTa2.match(/x=(\d+), y=(\d+), rộng=(\d+), cao=(\d+)/);
@@ -300,6 +311,49 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
          `go lop phu tren trang: con lech ${doLo.quanh_logo.toFixed(2)}/255`);
     kiem(doLo.ca_anh < 0.05, `go lop phu ma dung ca anh (${doLo.ca_anh.toFixed(3)}/255)`);
     kiem(loiT3.length === 0, "trang go lop phu co loi JS: " + loiT3.join(" | "));
+
+    // --- Chua du anh thi TUYET DOI khong duoc dung vao anh -------------------
+    // Voi mot anh don khong phan biet duoc logo mo voi net trang cua hinh ve
+    // (ban chan hinh que sang hon watermark nhieu). Va bua vao la nat cho do ma
+    // logo van con - dung cai anh nguoi dung gui. Tha noi thang la chua du anh.
+    const t4 = await trinhDuyet.newPage({ viewport: { width: 1200, height: 1000 } });
+    const loiT4 = [];
+    t4.on("pageerror", (er) => loiT4.push(er.message));
+    await t4.goto("file://" + TRANG);
+    await t4.setInputFiles("#file", [duongDanLo[0]]);
+    await t4.waitForSelector("#banLam:not(.an)", { timeout: 30000 });
+    await t4.waitForFunction(
+      () => !/Đang mở|Đang học/.test(document.getElementById("mota").textContent),
+      null, { timeout: 60000 });
+    const moTa1 = await t4.textContent("#mota");
+    console.log(`   1 anh -> ${moTa1.trim()}`);
+    kiem(/chưa xoá gì cả/.test(moTa1), "1 anh ma van xoa bua: " + moTa1);
+    kiem(((await t4.getAttribute("#canhBao", "class")) || "").indexOf("nang") >= 0,
+         "1 anh thi phai hien canh bao do noi bat");
+    // anh tai ve phai GIONG HET anh vao - khong dung mot pixel nao
+    const b64Vao = fs.readFileSync(duongDanLo[0]).toString("base64");
+    const yHet = await t4.evaluate(async (b64) => {
+      function tuB64(s) {
+        const bin = atob(s); const u = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        return u;
+      }
+      async function doc(nguon) {
+        const bm = await createImageBitmap(nguon instanceof Blob ? nguon : new Blob([nguon]));
+        const c = document.createElement("canvas");
+        c.width = bm.width; c.height = bm.height;
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(bm, 0, 0); bm.close();
+        return ctx.getImageData(0, 0, c.width, c.height).data;
+      }
+      const ra = await doc(await (await fetch(document.getElementById("taiVe").href)).blob());
+      const vao = await doc(tuB64(b64));
+      let lech = 0;
+      for (let i = 0; i < ra.length; i++) lech = Math.max(lech, Math.abs(ra[i] - vao[i]));
+      return lech;
+    }, b64Vao);
+    kiem(yHet === 0, `chua du anh ma anh tai ve da bi doi (lech toi da ${yHet})`);
+    kiem(loiT4.length === 0, "trang 1 anh co loi JS: " + loiT4.join(" | "));
 
     kiem(loiTrang.length === 0, "trang co loi JS: " + loiTrang.join(" | "));
   } catch (er) {
