@@ -16,16 +16,17 @@ const LOI_XOA = fs.readFileSync(path.join(__dirname, "loi_xoa.js"), "utf8");
 const GIAO_DIEN = String.raw`
 <div class="bao">
   <header>
-    <h1>Thử xoá watermark trên 1 ảnh</h1>
-    <p>Thả <b>một</b> ảnh vào đây để soi kỹ trước khi chạy cả dự án. Mọi thứ xử lý ngay
-      trong trình duyệt của bạn — ảnh không đi đâu cả, không cần mạng.</p>
+    <h1>Thử xoá watermark trước khi chạy cả dự án</h1>
+    <p>Thả <b>vài ảnh</b> của cùng dự án vào đây (3–8 ảnh là đẹp). Tool so các ảnh với nhau
+      để tìm đúng vị trí logo, rồi cho bạn lật từng ảnh xem thử — kể cả ảnh nào logo đè lên
+      người hay đồ vật. Mọi thứ xử lý ngay trong trình duyệt, ảnh không đi đâu cả.</p>
   </header>
 
   <div id="tha" class="tha">
-    <div class="tha-chu">Kéo thả 1 ảnh vào đây</div>
-    <div class="tha-phu">hoặc</div>
+    <div class="tha-chu">Kéo thả ảnh vào đây</div>
+    <div class="tha-phu">1 ảnh cũng được, nhưng 3–8 ảnh cùng dự án thì dò chính xác hơn hẳn</div>
     <button id="chon" class="nut-chinh" type="button">Chọn ảnh…</button>
-    <input id="file" type="file" accept="image/*" hidden>
+    <input id="file" type="file" accept="image/*" multiple hidden>
   </div>
 
   <section id="banLam" class="the an">
@@ -67,6 +68,12 @@ const GIAO_DIEN = String.raw`
       </div>
     </div>
 
+    <div class="hang-lat an" id="hangLat">
+      <button id="anhTruoc" class="nut-phu" type="button">◀</button>
+      <span id="soAnh"></span>
+      <button id="anhSau" class="nut-phu" type="button">▶</button>
+      <span class="lat-chu">— khung giữ nguyên khi lật, soi từng ảnh xem có ảnh nào hỏng không</span>
+    </div>
     <p id="mota" class="mota"></p>
 
     <div class="canh-canh">
@@ -130,6 +137,10 @@ input[type="text"] { margin-top: 6px; }
 .nut-phu { padding: 10px 16px; border: 1px solid #3c4043; border-radius: 8px;
   background: transparent; color: #e8eaed; font: inherit; cursor: pointer; }
 .hang-nut { display: flex; gap: 10px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
+.hang-lat { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+.hang-lat .nut-phu { padding: 6px 14px; }
+#soAnh { font-weight: 600; min-width: 84px; text-align: center; }
+.lat-chu { font-size: 12px; color: #9aa0a6; }
 .mota { color: #9aa0a6; margin: 16px 0 14px; }
 .canh-canh { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 .canh-canh figure { margin: 0; }
@@ -149,6 +160,8 @@ const DIEU_KHIEN = String.raw`
   "use strict";
   var LOI = window.XW_LOI;
   var e = function (id) { return document.getElementById(id); };
+  var danhSach = [];        // [{ ten, anh }]
+  var viTri = 0;
   var anhGoc = null, anhSach = null, vung = null, tenFile = "anh.png";
 
   function doiKichThuoc(canvas, anh, rongToiDa) {
@@ -191,13 +204,44 @@ const DIEU_KHIEN = String.raw`
   }
 
   function tuTimLogo() {
+    // Nhieu anh cung bo: so chung voi nhau, cach nay an nhat vi logo nam mot cho
+    // co dinh ca du an - ke ca anh nao logo de len nguoi hay do vat.
+    var cungCo = danhSach.filter(function (m) {
+      return m.anh.rong === anhGoc.rong && m.anh.cao === anhGoc.cao;
+    });
+    if (cungCo.length >= 3) {
+      var bo = LOI.timVungTuDong(cungCo.map(function (m) { return m.anh; }));
+      if (bo.vung) {
+        vung = bo.vung;
+        return "so " + cungCo.length + " ảnh với nhau: " + bo.ghi_chu;
+      }
+    }
+    // it anh: tim dom sang nho o goc ngay tren anh dang xem
     var kq = LOI.timLogoMotAnh(anhGoc);
     if (kq.vung) {
       vung = kq.vung;
       return kq.ghi_chu;
     }
     vung = LOI.phanTichVung("logo-duoi-phai", anhGoc.rong, anhGoc.cao);
-    return "không tự tìm được logo — đang dùng ô nhỏ góc dưới phải, kéo chuột để chỉnh";
+    return danhSach.length < 3
+      ? "chưa tìm được — thả thêm vài ảnh cùng dự án vào là dò ra ngay, hoặc kéo chuột khoanh tay"
+      : "chưa tìm được trên ảnh này — kéo chuột khoanh tay, khung đó dùng cho cả lô";
+  }
+
+  function veSoAnh() {
+    e("soAnh").textContent = danhSach.length
+      ? "Ảnh " + (viTri + 1) + " / " + danhSach.length : "";
+    e("anhTruoc").disabled = danhSach.length < 2;
+    e("anhSau").disabled = danhSach.length < 2;
+    e("hangLat").classList.toggle("an", danhSach.length < 2);
+  }
+
+  function moAnh(vt) {
+    viTri = (vt + danhSach.length) % danhSach.length;
+    anhGoc = danhSach[viTri].anh;
+    tenFile = danhSach[viTri].ten;
+    veSoAnh();
+    lamLai();          // giu nguyen khung, chi ve lai anh moi
   }
 
   function lamLai(ghiChu) {
@@ -259,22 +303,43 @@ const DIEU_KHIEN = String.raw`
       + anhGoc.rong + "×" + anhGoc.cao + ".";
   }
 
-  function nhanFile(f) {
-    if (!f) return;
-    tenFile = f.name || "anh.png";
-    createImageBitmap(f).then(function (bm) {
+  function docMotAnh(f) {
+    return createImageBitmap(f).then(function (bm) {
       var c = document.createElement("canvas");
       c.width = bm.width; c.height = bm.height;
       var ctx = c.getContext("2d", { willReadFrequently: true });
       ctx.drawImage(bm, 0, 0);
       bm.close();
       var id = ctx.getImageData(0, 0, c.width, c.height);
-      anhGoc = { rong: id.width, cao: id.height, du_lieu: id.data };
+      return { ten: f.name || "anh.png",
+               anh: { rong: id.width, cao: id.height, du_lieu: id.data } };
+    });
+  }
+
+  function nhanFile(cacFile) {
+    cacFile = Array.prototype.slice.call(cacFile || []).filter(function (f) {
+      return /^image\//.test(f.type) || /\.(png|jpe?g|webp|bmp)$/i.test(f.name || "");
+    });
+    if (!cacFile.length) return;
+    e("mota").textContent = "Đang mở " + cacFile.length + " ảnh...";
+    e("banLam").classList.remove("an");
+
+    var day = Promise.resolve([]);
+    cacFile.slice(0, 12).forEach(function (f) {
+      day = day.then(function (ds) {
+        return docMotAnh(f).then(function (m) { ds.push(m); return ds; },
+                                 function () { return ds; });
+      });
+    });
+    day.then(function (ds) {
+      if (!ds.length) { alert("Không mở được ảnh nào."); return; }
+      danhSach = ds;
+      viTri = 0;
+      anhGoc = ds[0].anh;
+      tenFile = ds[0].ten;
       vung = null;
-      e("banLam").classList.remove("an");
+      veSoAnh();
       lamLai("doi-cai-dat");
-    }).catch(function (er) {
-      alert("Không mở được ảnh này: " + (er && er.message ? er.message : er));
     });
   }
 
@@ -285,9 +350,11 @@ const DIEU_KHIEN = String.raw`
   ["dragleave", "drop"].forEach(function (t) {
     tha.addEventListener(t, function (su) { su.preventDefault(); tha.classList.remove("dang-keo"); });
   });
-  tha.addEventListener("drop", function (su) { nhanFile(su.dataTransfer.files[0]); });
+  tha.addEventListener("drop", function (su) { nhanFile(su.dataTransfer.files); });
   e("chon").addEventListener("click", function () { e("file").click(); });
-  e("file").addEventListener("change", function () { nhanFile(this.files[0]); });
+  e("file").addEventListener("change", function () { nhanFile(this.files); });
+  e("anhTruoc").addEventListener("click", function () { if (danhSach.length) moAnh(viTri - 1); });
+  e("anhSau").addEventListener("click", function () { if (danhSach.length) moAnh(viTri + 1); });
 
   ["vung", "cach", "locMau", "noRong"].forEach(function (id) {
     e(id).addEventListener("change", function () {
@@ -307,7 +374,7 @@ const DIEU_KHIEN = String.raw`
   e("anhKhac").addEventListener("click", function () {
     e("banLam").classList.add("an");
     e("file").value = "";
-    anhGoc = null; vung = null;
+    danhSach = []; anhGoc = null; vung = null;
   });
 
   e("chepToaDo").addEventListener("click", function () {

@@ -15,10 +15,12 @@
 
   var GOC_MAC_DINH = {
     "tu-dong": null,
-    "logo-duoi-phai": [0.90, 0.88, 0.10, 0.12],
-    "logo-duoi-trai": [0.00, 0.88, 0.10, 0.12],
-    "logo-tren-phai": [0.90, 0.00, 0.10, 0.12],
-    "logo-tren-trai": [0.00, 0.00, 0.10, 0.12],
+    // O nho sat goc - vua du trum dau sao cua Flow. De rong hon la nuot ca
+    // chan nguoi / bac thang nam gan do, va cho do thi kieu gi cung lo.
+    "logo-duoi-phai": [0.94, 0.92, 0.06, 0.08],
+    "logo-duoi-trai": [0.00, 0.92, 0.06, 0.08],
+    "logo-tren-phai": [0.94, 0.00, 0.06, 0.08],
+    "logo-tren-trai": [0.00, 0.00, 0.06, 0.08],
     "duoi-phai": [0.70, 0.86, 0.30, 0.14],
     "duoi-trai": [0.00, 0.86, 0.30, 0.14],
     "tren-phai": [0.70, 0.00, 0.30, 0.14],
@@ -276,12 +278,17 @@
       for (var k = 0; k < diem.length; k++) tong += chung[diem[k]];
       var manh = tong / diem.length;                           // net cang manh cang chac
       var dac = diem.length / (bb.w * bb.h);                   // cang gon cang giong logo
-      var riaX = Math.min(bb.x, rNho - (bb.x + bb.w));
-      var riaY = Math.min(bb.y, cNho - (bb.y + bb.h));
-      var sanRia = (riaX < 0.15 * rNho || riaY < 0.15 * cNho) ? 1.6 : 1.0;
+      // Watermark gan nhu luon nam sat ria anh. Cang vao giua cang dang ngo -
+      // do thuong la noi dung lap lai (dau nguoi, cai bang) chu khong phai logo.
+      var riaX = Math.min(bb.x, rNho - (bb.x + bb.w)) / rNho;
+      var riaY = Math.min(bb.y, cNho - (bb.y + bb.h)) / cNho;
+      var ria = Math.min(riaX, riaY);
+      var sanRia = ria < 0.15 ? 1.8 : (ria < 0.35 ? 1.0 : 0.35);
+      // KHONG thuong theo do to: mot cai dau nguoi lap lai o nhieu anh cung to
+      // hon cai logo nhieu lan. Chi cham theo do sac net, do gon va sat ria.
       ungVienCum.push({
         diem: diem, bb: bb,
-        diem_so: manh * Math.sqrt(diem.length) * (0.6 + 0.4 * dac) * sanRia,
+        diem_so: manh * (0.5 + 0.5 * dac) * sanRia,
       });
     }
     if (!ungVienCum.length) {
@@ -372,6 +379,7 @@
         var bb = baoQuanh([diem], oW);
         var canh = Math.max(bb.w, bb.h);
         if (canh < 8 || canh > 0.55 * Math.min(oW, oH)) continue;   // khong phai logo nho
+        if (bb.w > 0.07 * W || bb.h > 0.07 * H) continue;           // dinh vao vat the
         if (bb.w > 4 * bb.h || bb.h > 4 * bb.w) continue;           // dai ngoang -> bo
         var dac = diem.length / (bb.w * bb.h);
         if (dac < 0.15) continue;
@@ -396,7 +404,7 @@
           tot = {
             diem_so: diemSo, goc: ten,
             vung: noVung({ x: oX + bb.x, y: oY + bb.y, w: bb.w, h: bb.h },
-                         Math.max(3, Math.round(canh * 0.25)), W, H),
+                         Math.max(3, Math.min(12, Math.round(canh * 0.25))), W, H),
             vuot: vuot,
           };
         }
@@ -405,6 +413,15 @@
 
     if (!tot) {
       return { vung: null, goc: null, ghi_chu: "khong thay dom sang nho nao o cac goc anh" };
+    }
+    // Dom tim duoc to bat thuong = dang dinh ca vat the (chan nguoi, bac thang)
+    // chu khong phai rieng cai logo. Tha bao khong biet con hon khoanh bua roi
+    // va nat mot mang anh.
+    if (tot.vung.w * tot.vung.h > 0.015 * W * H) {
+      return {
+        vung: null, goc: null,
+        ghi_chu: "dom sang o goc dinh lien vao vat the khac nen khong tach rieng duoc logo",
+      };
     }
     return {
       vung: tot.vung, goc: tot.goc,

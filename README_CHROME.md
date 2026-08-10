@@ -35,18 +35,22 @@ Chrome sẽ nhắc "tiện ích ở chế độ nhà phát triển" mỗi lần 
 **Safari thì không** — Safari dùng định dạng tiện ích khác hẳn, phải đóng gói bằng
 Xcode mới cài được. Trên Mac cứ dùng Chrome cho việc này.
 
-## 0. Thử 1 ảnh trước đã — `THU_1_ANH.html`
+## 0. Thử trước đã — `THU_1_ANH.html`
 
 Trước khi đụng tới cả dự án 200 ảnh, **bấm đúp `THU_1_ANH.html`** (mở bằng Chrome hoặc
 bất kỳ trình duyệt nào). Không cần cài tiện ích, không cần Developer mode, không cần mạng.
 
-1. Thả **một** ảnh vào.
-2. Nó **tự tìm cái logo** ngay trên ảnh đó (đốm sáng nhỏ, gọn, sát một góc), vá thử,
-   rồi hiện **trước / sau phóng to 4×** — logo bé như dấu ✦ thì phải nhìn ở mức này
-   mới biết sạch hay chưa.
-3. Tìm trượt thì **kéo chuột khoanh lại** trên ảnh bên trái, hoặc bấm **Tự tìm lại logo**.
-4. Ưng thì bấm **Tải ảnh đã xoá** để xem file thật, và bấm **Chép toạ độ vùng**.
-5. Dán toạ độ đó vào ô *“hoặc gõ x,y,rộng,cao”* của tiện ích → cả dự án dùng đúng khung
+1. Thả **3–8 ảnh** của cùng dự án vào — nhớ chọn cả mấy ảnh khó (logo đè lên người,
+   đè lên đồ vật). Một ảnh cũng chạy được, nhưng nhiều ảnh thì dò chính xác hơn hẳn.
+2. Tool **so các ảnh với nhau** để tìm đúng chỗ logo (logo nằm cố định một chỗ cả dự án,
+   nên ảnh nào bị che vẫn lấy được vị trí từ những ảnh khác), vá thử, rồi hiện
+   **trước / sau phóng to 4×** — logo bé như dấu ✦ thì phải nhìn ở mức này mới biết
+   sạch hay chưa.
+3. Bấm **◀ ▶ để lật từng ảnh** — khung giữ nguyên, bạn soi xem có ảnh nào hỏng không.
+   Đây đúng là bước "test trước khi chạy hàng loạt".
+4. Khung chưa chuẩn thì **kéo chuột khoanh lại**, hoặc bấm **Tự tìm lại logo**.
+5. Ưng thì bấm **Tải ảnh đã xoá** để xem file thật, và bấm **Chép toạ độ vùng**.
+6. Dán toạ độ đó vào ô *“hoặc gõ x,y,rộng,cao”* của tiện ích → cả dự án dùng đúng khung
    bạn vừa duyệt. Toạ độ chỉ đúng cho ảnh **cùng kích thước**.
 
 Trang này dùng **chung một lõi xử lý** với tiện ích (file `loi_xoa.js` được nhúng thẳng
@@ -180,9 +184,12 @@ ra mà không cần so với ảnh khác. Cách này chạy được cả khi b�
 
 Vẫn trượt thì đừng chỉnh tới lui làm gì: **kéo chuột khoanh tay** trên ảnh soi trước. Xong.
 
-> **Đừng khoanh rộng cho chắc.** Vá một ô có chi tiết thật (bậc thang, người, chữ) thì
-> kiểu gì cũng lộ — không thuật toán nào dựng lại được cái nó không nhìn thấy. Khoanh
-> sát cái logo thôi. Trang `THU_1_ANH.html` sẽ cảnh báo khi khung chiếm quá 3% ảnh.
+> **Đừng khoanh rộng cho chắc.** Khoanh sát cái logo thôi. Trang `THU_1_ANH.html` sẽ
+> cảnh báo khi khung chiếm quá 3% ảnh.
+>
+> Ngược lại, **logo đè lên người hay đồ vật thì không đáng sợ** — miễn là khung khoanh
+> sát. Đo trên ảnh có dấu ✦ nằm đè lên chân hình que: vá xong dựng lại đúng cặp chân,
+> lệch **0,00**. Cách vá bám theo cấu trúc nên nó nối tiếp đúng vạch dọc của cái chân.
 
 Vài trường hợp tiện ích **cố ý không chặn**: trang tự đặt `location.href` sang link
 tải, hoặc file tải qua một tab khác. Chặn mấy chỗ đó dễ làm hỏng thao tác khác của

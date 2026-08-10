@@ -83,11 +83,12 @@ DUOI_VIDEO = {".mp4", ".mov", ".mkv", ".avi", ".webm"}
 
 # khung mac dinh cho tung goc: (x, y, rong, cao) theo ti le anh
 GOC_MAC_DINH = {
-    # logo nho xiu o goc (kieu dau sao cua Flow / Gemini)
-    "logo-duoi-phai": (0.90, 0.88, 0.10, 0.12),
-    "logo-duoi-trai": (0.00, 0.88, 0.10, 0.12),
-    "logo-tren-phai": (0.90, 0.00, 0.10, 0.12),
-    "logo-tren-trai": (0.00, 0.00, 0.10, 0.12),
+    # O nho sat goc (kieu dau sao cua Flow / Gemini) - vua du trum cai logo.
+    # De rong hon la nuot ca chan nguoi / bac thang nam gan do.
+    "logo-duoi-phai": (0.94, 0.92, 0.06, 0.08),
+    "logo-duoi-trai": (0.00, 0.92, 0.06, 0.08),
+    "logo-tren-phai": (0.94, 0.00, 0.06, 0.08),
+    "logo-tren-trai": (0.00, 0.00, 0.06, 0.08),
     # ca goc anh (watermark chu, dai hon)
     "duoi-phai": (0.70, 0.86, 0.30, 0.14),
     "duoi-trai": (0.00, 0.86, 0.30, 0.14),
@@ -823,6 +824,8 @@ def tim_logo_mot_anh(anh: np.ndarray, goc: str | None = None) -> tuple[Vung | No
             canh = max(bb.w, bb.h)
             if canh < 8 or canh > 0.55 * min(o_w, o_h):
                 continue
+            if bb.w > 0.07 * rong or bb.h > 0.07 * cao:   # dinh vao vat the khac
+                continue
             if bb.w > 4 * bb.h or bb.h > 4 * bb.w:
                 continue
             dac = len(diem) / max(1, bb.dien_tich)
@@ -838,12 +841,16 @@ def tim_logo_mot_anh(anh: np.ndarray, goc: str | None = None) -> tuple[Vung | No
             diem_so = vuot * dac / (0.25 + cach)
             if tot is None or diem_so > tot[0]:
                 vung = Vung(o_x + bb.x, o_y + bb.y, bb.w, bb.h).no(
-                    max(3, int(canh * 0.25)), rong, cao
+                    max(3, min(12, int(canh * 0.25))), rong, cao
                 )
                 tot = (diem_so, vung, ten, vuot)
 
     if tot is None:
         return None, "khong thay dom sang nho nao o cac goc anh"
+    # Dom to bat thuong = dang dinh ca vat the khac chu khong phai rieng logo
+    if tot[1].dien_tich > 0.015 * rong * cao:
+        return None, ("dom sang o goc dinh lien vao vat the khac"
+                      " nen khong tach rieng duoc logo")
     return tot[1], f"tu tim thay o goc {tot[2].replace('-', ' ')} (sang hon nen {round(tot[3])} muc)"
 
 
