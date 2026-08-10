@@ -1,5 +1,8 @@
 # Tiện ích Chrome — xoá watermark ảnh Flow / Gemini
 
+> 👉 **Chỉ cần cài và dùng thôi? Đọc [HUONG_DAN.md](HUONG_DAN.md)** — từng bước một, có cả
+> xử lý sự cố. File này đi sâu vào cách thuật toán hoạt động và số đo.
+
 Bật nút gạt trong Flow, bấm **tải dự án** như bình thường, file zip tải về đã sạch
 watermark. Toàn bộ xử lý chạy **trong máy bạn** — không gửi ảnh đi đâu, không cần
 mạng, không cần Python.

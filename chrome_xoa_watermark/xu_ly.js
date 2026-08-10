@@ -9,7 +9,7 @@
   var CAI_DAT_MAC_DINH = {
     bat: true,
     vung: "tu-dong",        // tu-dong | duoi-phai | ... | x,y,w,h
-    cach: "va",             // va (theo cau truc) | va-mem (khuech tan) | to
+    cach: "tu-dong",        // tu-dong (go lop phu neu du anh) | va | va-mem | to
     loc_mau: "tat",         // tat | sang | toi | #RRGGBB
     dung_sai: 0,
     no_rong: 2,
@@ -91,7 +91,9 @@
       }
 
       var sach = LOI.xoaWatermark(anh, {
-        vung_pixel: vung, cach: cd.cach, loc_mau: cd.loc_mau,
+        vung_pixel: vung,
+        cach: cd.cach === "tu-dong" || cd.cach === "go" ? "va" : cd.cach,
+        loc_mau: cd.loc_mau,
         dung_sai: cd.dung_sai, no_rong: cd.no_rong, xem_thu: cd.xem_thu,
       });
       return ANH.ghiAnh(sach, ten, cd.chat_luong);
@@ -112,14 +114,16 @@
    *      vua do duoc (watermark dang chu dai khong lot vao o goc o buoc 2).
    *   4. Van khong ra thi va nen nhu cu.
    */
-  function chuanBiChoLo(cacMuc, vungNguoiDung, soMau) {
+  function chuanBiChoLo(cacMuc, vungNguoiDung, soMau, choPhepHoc) {
     return docVaiAnh(cacMuc, soMau).then(function (anhMau) {
       var kt = anhMau.length ? { rong: anhMau[0].rong, cao: anhMau[0].cao } : null;
       function xong(mh, vung, ghiChu) {
         if (mh) mh.kich_thuoc = kt;
         return { mo_hinh: mh, vung: vung, ghi_chu: ghiChu, kich_thuoc: kt };
       }
-      var duAnh = anhMau.length >= LOI.SO_ANH_TOI_THIEU;
+      // nguoi dung chon tay mot cach cu the (va / va-mem / to) thi lam dung
+      // cach do, khong tu y go lop phu
+      var duAnh = choPhepHoc !== false && anhMau.length >= LOI.SO_ANH_TOI_THIEU;
 
       if (vungNguoiDung) {
         var mh0 = duAnh ? LOI.hocLopPhu(anhMau, vungNguoiDung) : null;
@@ -158,7 +162,8 @@
 
       var tuDong = LOI.phanTichVung(cd.vung, 1000, 1000) === null;
 
-      return chuanBiChoLo(anhMuc, tuDong ? null : cd.vung_pixel || null).then(function (kq) {
+      return chuanBiChoLo(anhMuc, tuDong ? null : cd.vung_pixel || null, null,
+                          cd.cach === "tu-dong" || cd.cach === "go").then(function (kq) {
         if (tuDong && !kq.vung) {
           throw new Error("Khong tu do duoc vung watermark (" + kq.ghi_chu
             + "). Hay chon goc cu the trong phan cai dat.");
@@ -220,7 +225,8 @@
       return { ten: f.name || "anh.png", doc: function () { return Promise.resolve(f); } };
     });
     var tuDong = LOI.phanTichVung(cd.vung, 1000, 1000) === null;
-    var doVung = chuanBiChoLo(muc, tuDong ? null : cd.vung_pixel || null);
+    var doVung = chuanBiChoLo(muc, tuDong ? null : cd.vung_pixel || null, null,
+                              cd.cach === "tu-dong" || cd.cach === "go");
 
     return doVung.then(function (kq) {
       if (tuDong && !kq.vung) {

@@ -1,7 +1,7 @@
 "use strict";
 
 var MAC_DINH = {
-  bat: false, vung: "tu-dong", cach: "va", loc_mau: "tat",
+  bat: false, vung: "tu-dong", cach: "tu-dong", loc_mau: "tat",
   dung_sai: 0, no_rong: 2, chat_luong: 0.95, xem_thu: false, chan_doan: false,
 };
 
