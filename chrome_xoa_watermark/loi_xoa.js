@@ -555,29 +555,77 @@
             + Math.abs(d[a * 4 + 2] - d[b * 4 + 2])) / 3;
     }
 
+    // Do "van" cua nen quanh lo: anh soc ngang (nen tren mot mau, dai duoi mot
+    // mau) thi mau doi nhieu theo chieu DOC va gan nhu khong doi theo chieu
+    // NGANG. Luc do phai uu tien noi ngang, nhat la khi lo nam sat goc anh -
+    // khong co cai nay thi noi doc se keo mau nen tren xuong dai duoi.
+    var uuTienNgang = 1, uuTienDoc = 1;
+    (function () {
+      var xMin = W, yMin = H, xMax = -1, yMax = -1;
+      for (var q = 0; q < n; q++) {
+        if (!matNa[q]) continue;
+        var qy = (q / W) | 0, qx = q - qy * W;
+        if (qx < xMin) xMin = qx; if (qx > xMax) xMax = qx;
+        if (qy < yMin) yMin = qy; if (qy > yMax) yMax = qy;
+      }
+      if (xMax < 0) return;
+      var le = Math.max(12, Math.min(60, Math.round(Math.max(xMax - xMin, yMax - yMin) * 0.5)));
+      var x0 = Math.max(0, xMin - le), x1 = Math.min(W - 2, xMax + le);
+      var y0 = Math.max(0, yMin - le), y1 = Math.min(H - 2, yMax + le);
+      var tongX = 0, demX = 0, tongY = 0, demY = 0;
+      for (var y = y0; y <= y1; y++) {
+        for (var x = x0; x <= x1; x++) {
+          var i = y * W + x;
+          if (!biet[i]) continue;
+          if (biet[i + 1]) { tongX += khacMau(i, i + 1); demX++; }
+          if (biet[i + W]) { tongY += khacMau(i, i + W); demY++; }
+        }
+      }
+      if (demX < 20 || demY < 20) return;
+      var gx = tongX / demX, gy = tongY / demY;
+      if (gy > 2 * gx + 0.05) uuTienNgang = 3;       // van ngang -> noi ngang
+      else if (gx > 2 * gy + 0.05) uuTienDoc = 3;    // van doc  -> noi doc
+    })();
+
     var ra = new Uint8ClampedArray(d);
     var duPhong = anhDuPhong ? anhDuPhong.du_lieu : null;
 
     for (var p = 0; p < n; p++) {
       if (!matNa[p]) continue;
       var py = (p / W) | 0, px = p - py * W;
-      var tong = [0, 0, 0], tongW = 0, tinNhat = 0;
 
-      // huong ngang
       var a1 = trai[p], b1 = phai[p];
-      if (a1 >= 0 || b1 >= 0) {
-        var kq = motHuong(a1, b1, px, a1 >= 0 ? a1 - py * W : 0, b1 >= 0 ? b1 - py * W : 0);
-        tong[0] += kq.w * kq.c[0]; tong[1] += kq.w * kq.c[1]; tong[2] += kq.w * kq.c[2];
-        tongW += kq.w;
-        if (kq.tin > tinNhat) tinNhat = kq.tin;
-      }
-      // huong doc
+      var ngang = (a1 >= 0 || b1 >= 0)
+        ? motHuong(a1, b1, px, a1 >= 0 ? a1 - py * W : 0, b1 >= 0 ? b1 - py * W : 0, 1)
+        : null;
+
       var a2 = tren[p], b2 = duoi[p];
-      if (a2 >= 0 || b2 >= 0) {
-        var kq2 = motHuong(a2, b2, py, a2 >= 0 ? (a2 / W) | 0 : 0, b2 >= 0 ? (b2 / W) | 0 : 0);
-        tong[0] += kq2.w * kq2.c[0]; tong[1] += kq2.w * kq2.c[1]; tong[2] += kq2.w * kq2.c[2];
-        tongW += kq2.w;
-        if (kq2.tin > tinNhat) tinNhat = kq2.tin;
+      var doc = (a2 >= 0 || b2 >= 0)
+        ? motHuong(a2, b2, py, a2 >= 0 ? (a2 / W) | 0 : 0, b2 >= 0 ? (b2 / W) | 0 : 0, W)
+        : null;
+
+      // Hai huong hay cai nhau o goc anh: ngang bao "mau dai duoi", doc bao
+      // "mau nen tren". Trung binh hai cai la ra vet toi. Nen chon dut khoat
+      // huong nao co diem lanh GAN hon va dang tin hon; chi khi xap xi nhau
+      // moi tron - anh gan nhau thi giong nhau, chon gan la an toan nhat.
+      var tong = [0, 0, 0], tongW = 0, tinNhat = 0;
+      var chon = [];
+      if (ngang) ngang.diem *= uuTienNgang;
+      if (doc) doc.diem *= uuTienDoc;
+      if (ngang && doc) {
+        if (ngang.diem >= 1.2 * doc.diem) chon = [ngang];
+        else if (doc.diem >= 1.2 * ngang.diem) chon = [doc];
+        else chon = [ngang, doc];
+      } else if (ngang) chon = [ngang];
+      else if (doc) chon = [doc];
+
+      for (var ci = 0; ci < chon.length; ci++) {
+        var kq = chon[ci];
+        tong[0] += kq.diem * kq.c[0];
+        tong[1] += kq.diem * kq.c[1];
+        tong[2] += kq.diem * kq.c[2];
+        tongW += kq.diem;
+        if (kq.tin > tinNhat) tinNhat = kq.tin;
       }
 
       if (tongW <= 0) {
@@ -590,6 +638,7 @@
       }
 
       var cauTruc = [tong[0] / tongW, tong[1] / tongW, tong[2] / tongW];
+      tinNhat = Math.min(1, tinNhat / 0.8);   // tin >= 0.8 la dung han cau truc
       if (duPhong && tinNhat < 1) {
         // nen roi -> pha them ban khuech tan cho khoi thay via
         for (var c = 0; c < 3; c++) {
@@ -600,14 +649,26 @@
       }
     }
 
-    /** Tinh mau + do tin cay cua mot huong (2 dau a, b tren cung truc). */
-    function motHuong(a, b, viTri, toaA, toaB) {
-      if (a < 0 || b < 0) {           // chi mot dau co pixel lanh
+    /**
+     * Tinh mau + do tin cay cua mot huong (2 dau a, b tren cung truc).
+     * buoc = khoang cach 1 buoc theo truc do trong mang du_lieu (1 hoac W).
+     */
+    function motHuong(a, b, viTri, toaA, toaB, buoc) {
+      if (a < 0 || b < 0) {
+        // Chi mot dau co pixel lanh - hay gap khi watermark nam sat mep anh.
+        // Luc do do DO PHANG ngay tren phia con dung duoc: lay them mot pixel
+        // lui vao 3 buoc, hai cai giong nhau nghia la vung do dong mau nen keo
+        // thang mau do ra la dung. Khong co buoc nay thi no bo sang huong doc
+        // va keo mau tu ben kia ranh gioi sang - dung vet lo hoi truoc.
         var chi = a >= 0 ? a : b;
-        var xa = Math.abs(viTri - (a >= 0 ? toaA : toaB));
+        var xa = Math.max(1, Math.abs(viTri - (a >= 0 ? toaA : toaB)));
+        var lui = a >= 0 ? chi - 3 * buoc : chi + 3 * buoc;
+        var phang = (lui >= 0 && lui < n && biet[lui]) ? khacMau(chi, lui) : 0;
+        var tinMot = 0.85 / (1 + phang / 6);
         return {
           c: [d[chi * 4], d[chi * 4 + 1], d[chi * 4 + 2]],
-          w: 0.25 / (1 + xa / 40), tin: 0.3 / (1 + xa / 40),
+          tin: tinMot,
+          diem: tinMot / (1 + xa / 40),
         };
       }
       var dA = Math.max(1, Math.abs(viTri - toaA));
@@ -621,8 +682,8 @@
           d[a * 4 + 1] * (1 - t) + d[b * 4 + 1] * t,
           d[a * 4 + 2] * (1 - t) + d[b * 4 + 2] * t,
         ],
-        w: tin * tin / (1 + (dA + dB) / 60),
         tin: tin,
+        diem: tin / (1 + Math.min(dA, dB) / 40),
       };
     }
 

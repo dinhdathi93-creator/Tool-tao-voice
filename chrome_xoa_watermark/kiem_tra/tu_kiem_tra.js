@@ -254,6 +254,38 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
   kiem(lechCau < lechMem, "va theo cau truc phai hon han khuech tan o cho giap ranh sac net");
 }
 
+// Logo SAT MEP anh: huong ngang chi con mot ben, huong doc thi vat qua ranh
+// gioi xanh/vang. Chon nham huong la ra dung vet toi o goc.
+{
+  const gocMep = anhKieuFlow(3, 1376, 768);
+  const dat = Math.round(768 * 0.87);
+  const d = new Uint8ClampedArray(gocMep.du_lieu);
+  const banMep = { rong: 1376, cao: 768, du_lieu: d };
+  const sx = 1376 - 24 - 30, sy = dat - 15;      // cach mep phai 24px, vat ranh gioi
+  for (let y = sy; y < sy + 30; y++) {
+    for (let x = sx; x < sx + 30; x++) {
+      const dx = (x - sx - 15) / 15, dy = (y - sy - 15) / 15;
+      if (Math.pow(Math.abs(dx), 0.55) + Math.pow(Math.abs(dy), 0.55) <= 1) {
+        const i = (y * 1376 + x) * 4;
+        for (let c = 0; c < 3; c++) d[i + c] = 255;
+      }
+    }
+  }
+  const cacKhung = [
+    ["khung vua du", { x: sx - 6, y: sy - 6, w: 42, h: 42 }],
+    ["cham mep phai", { x: sx - 6, y: sy - 6, w: 1376 - (sx - 6), h: 42 }],
+    ["cham mep phai va day", { x: sx - 6, y: sy - 6, w: 1376 - (sx - 6), h: 768 - (sy - 6) }],
+    ["preset logo-duoi-phai", LOI.phanTichVung("logo-duoi-phai", 1376, 768)],
+  ];
+  cacKhung.forEach(function (muc) {
+    const ten = muc[0], v = muc[1];
+    const mn = LOI.taoMatNa(banMep, v, "tat", 0, 2);
+    const kq = sanhTrongVung(LOI.vaCauTruc(banMep, mn, LOI.vaLai(banMep, mn)), gocMep, v);
+    console.log(`   Logo sat mep (${ten}): lech ${kq.toFixed(2)}`);
+    kiem(kq < 1, `[${ten}] con de lai vet o goc anh (${kq.toFixed(2)}/255)`);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // 5. Zip: ghi -> doc lai, va doc duoc entry nen deflate
 // ---------------------------------------------------------------------------

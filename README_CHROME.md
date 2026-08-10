@@ -129,6 +129,21 @@ Chromium (giải nén zip → canvas → vá → mã hoá lại → đóng zip) 
 Chỗ nào nền thật sự rối (ảnh chụp), độ tin cậy thấp thì nó tự pha sang bản khuếch tán
 cho mượt, không để lộ vệt gãy.
 
+**Logo sát mép ảnh** (đúng chỗ dấu ✦ của Flow) là ca khó nhất: bên phải không còn pixel
+lành để nối, nên nếu chọn nhầm hướng dọc là nó kéo màu nền xanh xuống dải vàng — đúng
+vệt tối bạn thấy. Bản 1.2 xử lý bằng ba việc: đo **độ phẳng** ngay trên phía còn dùng
+được (thay vì đòi đủ hai đầu), **chọn dứt khoát** hướng nào điểm lành gần và đáng tin
+hơn thay vì trung bình hai hướng đang cãi nhau, và nhìn **vân của nền** quanh chỗ vá —
+ảnh sọc ngang thì ưu tiên nối ngang.
+
+Đo trên ảnh có dấu ✦ cách mép phải 24px, vắt qua ranh giới xanh/vàng:
+
+| Khung | Khuếch tán | Theo cấu trúc |
+|---|---|---|
+| Vừa đủ, không chạm mép | 26,0 | **0,00** |
+| Chạm mép phải | 31,6 | **0,00** |
+| Chạm cả mép phải lẫn đáy | 27,6 | **0,00** |
+
 ## 5b. Tự động dò khoanh nhầm chỗ
 
 Bộ dò tìm những nét **ảnh nào trong bộ cũng có**. Ảnh kiểu kênh bạn (nền xanh đậm,

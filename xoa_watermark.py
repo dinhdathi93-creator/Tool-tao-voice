@@ -429,28 +429,72 @@ def va_lai(anh: np.ndarray, mat_na: np.ndarray, dung_opencv: bool = True) -> np.
 
 def _mot_huong(
     A: np.ndarray, B: np.ndarray, co_a: np.ndarray, co_b: np.ndarray,
-    d_a: np.ndarray, d_b: np.ndarray,
+    d_a: np.ndarray, d_b: np.ndarray, A_lui: np.ndarray, B_lui: np.ndarray,
+    co_a_lui: np.ndarray, co_b_lui: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Mau + trong so + do tin cay khi noi hai dau A, B tren cung mot truc."""
+    """Mau + do tin cay + diem cua mot huong (2 dau A, B tren cung mot truc).
+
+    A_lui / B_lui la pixel lui vao them 3 buoc sau A / B - dung de do DO PHANG
+    khi chi mot dau co pixel lanh (watermark nam sat mep anh).
+    """
     khac = np.abs(A - B).mean(axis=2)
     tin2 = 1.0 / (1.0 + khac / 6.0)          # hai dau cang giong nhau cang dang tin
     t = (d_a / np.maximum(1.0, d_a + d_b))[..., None]
     c2 = A * (1.0 - t) + B * t
-    w2 = tin2 ** 2 / (1.0 + (d_a + d_b) / 60.0)
+    diem2 = tin2 / (1.0 + np.minimum(d_a, d_b) / 40.0)
 
     chi_a = co_a & ~co_b
     chi_b = co_b & ~co_a
     mot_dau = chi_a | chi_b
-    xa = np.where(chi_a, d_a, d_b)
+    xa = np.maximum(1.0, np.where(chi_a, d_a, d_b))
     c1 = np.where(chi_a[..., None], A, B)
-    w1 = 0.25 / (1.0 + xa / 40.0)
-    tin1 = 0.3 / (1.0 + xa / 40.0)
+    phang = np.where(
+        chi_a, np.where(co_a_lui, np.abs(A - A_lui).mean(axis=2), 0.0),
+        np.where(co_b_lui, np.abs(B - B_lui).mean(axis=2), 0.0),
+    )
+    tin1 = 0.85 / (1.0 + phang / 6.0)
+    diem1 = tin1 / (1.0 + xa / 40.0)
 
     ca_hai = co_a & co_b
     mau = np.where(ca_hai[..., None], c2, c1)
-    trong_so = np.where(ca_hai, w2, np.where(mot_dau, w1, 0.0))
     tin = np.where(ca_hai, tin2, np.where(mot_dau, tin1, 0.0))
-    return mau, trong_so, tin
+    diem = np.where(ca_hai, diem2, np.where(mot_dau, diem1, 0.0))
+    return mau, tin, diem
+
+
+def _van_quanh_lo(a: np.ndarray, biet: np.ndarray, mat_na: np.ndarray) -> tuple[float, float]:
+    """Do 'van' cua nen quanh lo -> (uu_tien_ngang, uu_tien_doc).
+
+    Anh soc ngang (nen tren mot mau, dai duoi mot mau) thi mau doi nhieu theo
+    chieu DOC va gan nhu khong doi theo chieu NGANG. Luc do phai uu tien noi
+    ngang - nhat la khi lo nam sat goc anh, khong thi noi doc se keo mau nen
+    tren xuong dai duoi thanh vet.
+    """
+    cao, rong = biet.shape
+    ys, xs = np.nonzero(mat_na)
+    if ys.size == 0:
+        return 1.0, 1.0
+    le = max(12, min(60, int(0.5 * max(xs.max() - xs.min(), ys.max() - ys.min()))))
+    x0, x1 = max(0, int(xs.min()) - le), min(rong - 1, int(xs.max()) + le)
+    y0, y1 = max(0, int(ys.min()) - le), min(cao - 1, int(ys.max()) + le)
+
+    o = a[y0 : y1 + 1, x0 : x1 + 1]
+    b = biet[y0 : y1 + 1, x0 : x1 + 1]
+    if o.shape[0] < 3 or o.shape[1] < 3:
+        return 1.0, 1.0
+
+    cap_x = b[:, :-1] & b[:, 1:]
+    cap_y = b[:-1, :] & b[1:, :]
+    if cap_x.sum() < 20 or cap_y.sum() < 20:
+        return 1.0, 1.0
+    gx = float(np.abs(o[:, 1:] - o[:, :-1]).mean(axis=2)[cap_x].mean())
+    gy = float(np.abs(o[1:, :] - o[:-1, :]).mean(axis=2)[cap_y].mean())
+
+    if gy > 2 * gx + 0.05:
+        return 3.0, 1.0
+    if gx > 2 * gy + 0.05:
+        return 1.0, 3.0
+    return 1.0, 1.0
 
 
 def va_cau_truc(
@@ -459,10 +503,10 @@ def va_cau_truc(
     """Va theo CAU TRUC nen - giu duoc net sac cua nen phang / vector.
 
     Voi moi pixel trong lo, nhin sang 4 huong tim pixel con lanh gan nhat:
-    trai/phai cung hang, tren/duoi cung cot. Huong nao co HAI DAU GIONG MAU NHAU
-    thi huong do dang tin - noi thang mau giua hai dau. Nen la dai mau ngang
-    (vi du xanh o tren, vang o duoi) thi hang nao cung dong mau, noi ngang ra
-    dung mau cua chinh hang do, nen ranh gioi khong bi keo nhoe.
+    trai/phai cung hang, tren/duoi cung cot. Moi huong duoc cham diem theo do
+    giong nhau cua hai dau (hoac do phang cua phia con dung duoc, khi lo nam sat
+    mep anh) va theo khoang cach. Huong nao an dut thi lay han huong do - trung
+    binh hai huong dang cai nhau chinh la thu tao ra vet lo o goc anh.
 
     Cho nao ca hai huong deu khong dang tin (nen roi, anh chup that) thi lay ban
     'du_phong' (va khuech tan) cho muot.
@@ -485,20 +529,42 @@ def va_cau_truc(
     def mau_tai(x_idx: np.ndarray, y_idx: np.ndarray) -> np.ndarray:
         return a[np.clip(y_idx, 0, cao - 1), np.clip(x_idx, 0, rong - 1)]
 
-    # huong ngang
-    mau_n, w_n, tin_n = _mot_huong(
+    def lanh_tai(x_idx: np.ndarray, y_idx: np.ndarray) -> np.ndarray:
+        return biet[np.clip(y_idx, 0, cao - 1), np.clip(x_idx, 0, rong - 1)]
+
+    # huong ngang: hai dau la trai / phai, lui them 3 cot de do do phang
+    trai_lui, phai_lui = trai - 3, phai + 3
+    mau_n, tin_n, diem_n = _mot_huong(
         mau_tai(trai, hang), mau_tai(phai, hang),
         trai >= 0, phai < rong,
         np.maximum(1, cot - trai).astype(np.float32),
         np.maximum(1, phai - cot).astype(np.float32),
+        mau_tai(trai_lui, hang), mau_tai(phai_lui, hang),
+        (trai_lui >= 0) & lanh_tai(trai_lui, hang),
+        (phai_lui < rong) & lanh_tai(phai_lui, hang),
     )
     # huong doc
-    mau_d, w_d, tin_d = _mot_huong(
+    tren_lui, duoi_lui = tren - 3, duoi + 3
+    mau_d, tin_d, diem_d = _mot_huong(
         mau_tai(cot, tren), mau_tai(cot, duoi),
         tren >= 0, duoi < cao,
         np.maximum(1, hang - tren).astype(np.float32),
         np.maximum(1, duoi - hang).astype(np.float32),
+        mau_tai(cot, tren_lui), mau_tai(cot, duoi_lui),
+        (tren_lui >= 0) & lanh_tai(cot, tren_lui),
+        (duoi_lui < cao) & lanh_tai(cot, duoi_lui),
     )
+
+    uu_ngang, uu_doc = _van_quanh_lo(a, biet, mat_na)
+    diem_n = diem_n * uu_ngang
+    diem_d = diem_d * uu_doc
+
+    co_n, co_d = diem_n > 0, diem_d > 0
+    chon_n = co_n & (~co_d | (diem_n >= 1.2 * diem_d))
+    chon_d = co_d & (~co_n | (diem_d >= 1.2 * diem_n))
+    tron = co_n & co_d & ~chon_n & ~chon_d
+    w_n = np.where(chon_n | tron, diem_n, 0.0)
+    w_d = np.where(chon_d | tron, diem_d, 0.0)
 
     tong_w = w_n + w_d
     cau_truc = (mau_n * w_n[..., None] + mau_d * w_d[..., None]) / np.maximum(
@@ -506,12 +572,12 @@ def va_cau_truc(
     )[..., None]
 
     nen = du_phong.astype(np.float32) if du_phong is not None else a
-    tin_nhat = np.clip(np.maximum(tin_n, tin_d), 0.0, 1.0)[..., None]
-    tron = tin_nhat * cau_truc + (1.0 - tin_nhat) * nen
-    tron = np.where((tong_w > 0)[..., None], tron, nen)
+    tin_nhat = np.clip(np.maximum(tin_n, tin_d) / 0.8, 0.0, 1.0)[..., None]
+    ket = tin_nhat * cau_truc + (1.0 - tin_nhat) * nen
+    ket = np.where((tong_w > 0)[..., None], ket, nen)
 
     ra = a.copy()
-    ra[mat_na] = tron[mat_na]
+    ra[mat_na] = ket[mat_na]
     return np.clip(ra, 0, 255).astype(np.uint8)
 
 
@@ -1145,6 +1211,33 @@ def tu_kiem_tra() -> int:
                    f" ({_lech_flow(theo_cau_truc):.1f}/255)")
     if _lech_flow(theo_cau_truc) > _lech_flow(mem):
         loi.append("va theo cau truc phai hon han khuech tan o cho giap ranh sac net")
+
+    # --- 4c. Logo SAT MEP anh: huong ngang chi con mot ben, huong doc thi vat
+    # qua ranh gioi xanh/vang. Chon nham huong la ra dung vet toi o goc.
+    goc_mep = _anh_kieu_flow(3)
+    ban_mep = goc_mep.copy()
+    dat_y = int(768 * 0.87)
+    sx, sy = 1376 - 24 - 30, dat_y - 15        # cach mep phai 24px, vat ranh gioi
+    for yy in range(sy, sy + 30):
+        for xx in range(sx, sx + 30):
+            dx, dy = (xx - sx - 15) / 15, (yy - sy - 15) / 15
+            if abs(dx) ** 0.55 + abs(dy) ** 0.55 <= 1:
+                ban_mep[yy, xx] = 255
+
+    for ten_khung, v_mep in [
+        ("khung vua du", Vung(sx - 6, sy - 6, 42, 42)),
+        ("cham mep phai", Vung(sx - 6, sy - 6, 1376 - (sx - 6), 42)),
+        ("cham mep phai va day", Vung(sx - 6, sy - 6, 1376 - (sx - 6), 768 - (sy - 6))),
+        ("preset logo-duoi-phai", phan_tich_vung("logo-duoi-phai", 1376, 768)),
+    ]:
+        mn_mep = tao_mat_na(ban_mep, v_mep, "tat", 0, 2)
+        ra_mep = va_cau_truc(ban_mep, mn_mep, va_lai(ban_mep, mn_mep, dung_opencv=False))
+        o_mep = (slice(v_mep.y, v_mep.y + v_mep.h), slice(v_mep.x, v_mep.x + v_mep.w))
+        lech_mep = float(np.abs(ra_mep[o_mep].astype(np.float32)
+                                - goc_mep[o_mep].astype(np.float32)).mean())
+        log.info("   Logo sat mep (%s): lech %.2f", ten_khung, lech_mep)
+        if lech_mep > 1.0:
+            loi.append(f"[{ten_khung}] con de lai vet o goc anh ({lech_mep:.2f}/255)")
 
     # --- 5. Va lai co that su sach khong ----------------------------------
     o = (slice(that.y, that.y + that.h), slice(that.x, that.x + that.w))

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Xoa watermark - Flow / Gemini",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Xoa logo goc tren anh cua ban ngay trong trinh duyet. Bat nut gat roi tai du an nhu binh thuong, hoac tha file zip vao popup.",
   "permissions": ["storage", "downloads"],
   "host_permissions": [
