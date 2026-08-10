@@ -34,7 +34,8 @@ const GIAO_DIEN = String.raw`
       <div>
         <label for="vung">Watermark nằm ở đâu</label>
         <select id="vung">
-          <option value="logo-duoi-phai">Logo nhỏ góc dưới phải (dấu ✦ của Flow)</option>
+          <option value="tu-tim">Tự tìm logo trên ảnh này (nên dùng)</option>
+          <option value="logo-duoi-phai">Ô nhỏ góc dưới phải (dấu ✦ của Flow)</option>
           <option value="logo-duoi-trai">Logo nhỏ góc dưới trái</option>
           <option value="logo-tren-phai">Logo nhỏ góc trên phải</option>
           <option value="logo-tren-trai">Logo nhỏ góc trên trái</option>
@@ -87,10 +88,12 @@ const GIAO_DIEN = String.raw`
 
     <div class="hang-nut">
       <a id="taiVe" class="nut-chinh" download>⬇ Tải ảnh đã xoá</a>
+      <button id="tuTim" class="nut-phu" type="button">Tự tìm lại logo</button>
       <button id="chepToaDo" class="nut-phu" type="button">Chép toạ độ vùng</button>
       <button id="anhKhac" class="nut-phu" type="button">Thử ảnh khác</button>
     </div>
 
+    <div id="canhBao" class="canh-bao an"></div>
     <div class="ghi-chu" id="ghiChu"></div>
   </section>
 </div>
@@ -136,6 +139,8 @@ input[type="text"] { margin-top: 6px; }
 #cKhung { cursor: crosshair; }
 #zTruoc, #zSau { image-rendering: pixelated; }
 .ghi-chu { margin-top: 16px; font-size: 12px; color: #9aa0a6; }
+.canh-bao { margin-top: 16px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
+  background: #2b2416; border: 1px solid #5c4a1e; color: #fdd663; }
 .ghi-chu b { color: #e8eaed; }
 `;
 
@@ -185,12 +190,26 @@ const DIEU_KHIEN = String.raw`
     };
   }
 
+  function tuTimLogo() {
+    var kq = LOI.timLogoMotAnh(anhGoc);
+    if (kq.vung) {
+      vung = kq.vung;
+      return kq.ghi_chu;
+    }
+    vung = LOI.phanTichVung("logo-duoi-phai", anhGoc.rong, anhGoc.cao);
+    return "không tự tìm được logo — đang dùng ô nhỏ góc dưới phải, kéo chuột để chỉnh";
+  }
+
   function lamLai(ghiChu) {
     if (!anhGoc) return;
     var cd = docCaiDat();
     if (!vung || ghiChu === "doi-cai-dat") {
-      vung = LOI.phanTichVung(cd.vung, anhGoc.rong, anhGoc.cao)
-          || LOI.phanTichVung("logo-duoi-phai", anhGoc.rong, anhGoc.cao);
+      if (cd.vung === "tu-tim") {
+        ghiChu = tuTimLogo();
+      } else {
+        vung = LOI.phanTichVung(cd.vung, anhGoc.rong, anhGoc.cao)
+            || LOI.phanTichVung("logo-duoi-phai", anhGoc.rong, anhGoc.cao);
+      }
     }
     vung = LOI.gioiHan(vung, anhGoc.rong, anhGoc.cao);
 
@@ -200,7 +219,21 @@ const DIEU_KHIEN = String.raw`
 
     e("mota").textContent = "Ảnh " + anhGoc.rong + "×" + anhGoc.cao
       + " — vùng vá: x=" + vung.x + ", y=" + vung.y + ", rộng=" + vung.w + ", cao=" + vung.h
-      + (ghiChu === "keo-tay" ? " (bạn tự khoanh)" : "");
+      + (ghiChu === "keo-tay" ? " (bạn tự khoanh)"
+         : (ghiChu && ghiChu !== "doi-cai-dat" ? " (" + ghiChu + ")" : ""));
+
+    // Khung to bat thuong = dang trum ca noi dung that (bac thang, nguoi...).
+    // Va cho do thi kieu gi cung lo, nen phai noi ngay chu khong de nguoi dung
+    // chay ca lo roi moi phat hien.
+    var tiLeKhung = (vung.w * vung.h) / (anhGoc.rong * anhGoc.cao);
+    if (tiLeKhung > 0.03) {
+      e("canhBao").textContent = "⚠ Khung này chiếm " + (tiLeKhung * 100).toFixed(1)
+        + "% ảnh — to hơn nhiều so với một cái logo. Nếu trong khung có chi tiết thật "
+        + "(bậc thang, người, chữ…) thì vá xong chắc chắn lộ. Hãy khoanh sát cái logo thôi.";
+      e("canhBao").classList.remove("an");
+    } else {
+      e("canhBao").classList.add("an");
+    }
 
     ve(e("cKhung"), LOI.veKhung(anhGoc, vung));
     ve(e("cSach"), anhSach);
@@ -263,6 +296,13 @@ const DIEU_KHIEN = String.raw`
     });
   });
   e("vungTuGo").addEventListener("change", function () { lamLai("doi-cai-dat"); });
+
+  e("tuTim").addEventListener("click", function () {
+    if (!anhGoc) return;
+    e("vung").value = "tu-tim";
+    e("vungTuGo").value = "";
+    lamLai("doi-cai-dat");
+  });
 
   e("anhKhac").addEventListener("click", function () {
     e("banLam").classList.add("an");

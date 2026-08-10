@@ -15,7 +15,10 @@ Hoac:
 
 Chon VUNG (--vung):
   tu-dong                 tu do vi tri watermark bang cach so nhieu anh cung bo
-                          (can it nhat 3 anh cung kich thuoc, watermark dung yen)
+                          (can it nhat 3 anh cung kich thuoc, watermark dung yen);
+                          khong ra thi tu lui ve cach tim dom sang nho o goc
+  tu-tim                  tim dom sang nho o goc NGAY TREN TUNG ANH - dung khi
+                          moi anh mot kieu hoac chi co vai anh
   logo-duoi-phai | logo-duoi-trai | logo-tren-phai | logo-tren-trai
                           o vuong nho o goc - dung cho logo nho kieu dau sao
                           cua Flow / Gemini
@@ -175,7 +178,7 @@ def _so_theo_chieu(manh: str, chieu: int) -> int:
 def phan_tich_vung(chuoi: str, rong: int, cao: int) -> Vung | None:
     """Doi chuoi --vung thanh khung pixel. Tra None neu la 'tu-dong'."""
     ten = (chuoi or "").strip().lower().replace("_", "-")
-    if ten in ("", "tu-dong", "auto"):
+    if ten in ("", "tu-dong", "auto", "tu-tim"):
         return None
 
     if ten in GOC_MAC_DINH:
@@ -787,6 +790,63 @@ def tim_vung_tu_dong(
     return vung, f"do duoc tu {len(xam)} anh"
 
 
+def tim_logo_mot_anh(anh: np.ndarray, goc: str | None = None) -> tuple[Vung | None, str]:
+    """Tim logo nho SANG MAU o cac goc, chi can MOT anh.
+
+    Watermark kieu Flow / Gemini la dau sao trang nho nam sat mot goc anh. Tren
+    mot anh don khong so duoc voi anh khac, nhung van nhan ra duoc: no sang han
+    han nen quanh no, gan nhu khong mau (trang / xam), gon, va nam sat goc.
+    """
+    cao, rong = anh.shape[:2]
+    cac_goc = [goc] if goc else ["duoi-phai", "duoi-trai", "tren-phai", "tren-trai"]
+    tot: tuple[float, Vung, str, float] | None = None
+
+    for ten in cac_goc:
+        o_w = max(40, int(rong * 0.18))
+        o_h = max(40, int(cao * 0.22))
+        o_x = rong - o_w if "phai" in ten else 0
+        o_y = cao - o_h if "duoi" in ten else 0
+        o = anh[o_y : o_y + o_h, o_x : o_x + o_w].astype(np.float32)
+
+        sang = 0.299 * o[..., 0] + 0.587 * o[..., 1] + 0.114 * o[..., 2]
+        nen = float(np.median(sang))
+        nguong = max(18.0, (float(np.percentile(sang, 99.5)) - nen) * 0.45)
+        ruc = o.max(axis=2) - o.min(axis=2)
+        co = (sang > nen + nguong) & (ruc < 60)
+        if co.sum() < 12 or co.sum() > 0.25 * o_w * o_h:
+            continue
+
+        for diem in _cac_cum(_no_rong(co, 2))[:6]:
+            if len(diem) < 12:
+                continue
+            bb = _bao_quanh([diem])
+            canh = max(bb.w, bb.h)
+            if canh < 8 or canh > 0.55 * min(o_w, o_h):
+                continue
+            if bb.w > 4 * bb.h or bb.h > 4 * bb.w:
+                continue
+            dac = len(diem) / max(1, bb.dien_tich)
+            if dac < 0.15:
+                continue
+
+            vuot = float(sang[diem[:, 0], diem[:, 1]].mean() - nen)
+            goc_x = o_w if "phai" in ten else 0
+            goc_y = o_h if "duoi" in ten else 0
+            cach = math.hypot(bb.x + bb.w / 2 - goc_x, bb.y + bb.h / 2 - goc_y) / max(
+                1, min(o_w, o_h)
+            )
+            diem_so = vuot * dac / (0.25 + cach)
+            if tot is None or diem_so > tot[0]:
+                vung = Vung(o_x + bb.x, o_y + bb.y, bb.w, bb.h).no(
+                    max(3, int(canh * 0.25)), rong, cao
+                )
+                tot = (diem_so, vung, ten, vuot)
+
+    if tot is None:
+        return None, "khong thay dom sang nho nao o cac goc anh"
+    return tot[1], f"tu tim thay o goc {tot[2].replace('-', ' ')} (sang hon nen {round(tot[3])} muc)"
+
+
 # ---------------------------------------------------------------------------
 # 6. Xu ly tung file
 # ---------------------------------------------------------------------------
@@ -810,6 +870,10 @@ def xu_ly_anh(
     cao, rong = anh.shape[:2]
 
     vung = vung_san if vung_san is not None else phan_tich_vung(vung_yeu_cau, rong, cao)
+    if vung is None and (vung_yeu_cau or "").strip().lower().replace("_", "-") == "tu-tim":
+        vung, ghi_chu_logo = tim_logo_mot_anh(anh)
+        if vung is not None:
+            log.info("   %s: %s", duong_dan.name, ghi_chu_logo)
     if vung is None:
         log.error("   [BO QUA] %s: chua xac dinh duoc vung watermark.", duong_dan.name)
         return False
@@ -964,6 +1028,10 @@ def chay(tuy_chon: argparse.Namespace) -> int:
                 except Exception as loi:
                     log.warning("Khong doc duoc %s (%s)", f.name, loi)
             vung, ghi_chu = tim_vung_tu_dong(mau) if len(mau) >= 3 else (None, "it hon 3 anh")
+            if vung is None and mau:
+                vung, ghi_chu_2 = tim_logo_mot_anh(mau[0])
+                if vung is not None:
+                    ghi_chu = ghi_chu_2
             vung_theo_kich_thuoc[kt] = vung
             if vung:
                 log.info("Tu do vi tri watermark cho anh %dx%d: %s (%s)",
@@ -1239,6 +1307,36 @@ def tu_kiem_tra() -> int:
         if lech_mep > 1.0:
             loi.append(f"[{ten_khung}] con de lai vet o goc anh ({lech_mep:.2f}/255)")
 
+    # --- 4d. Tim logo chi tu MOT anh --------------------------------------
+    def _dat_sao(a: np.ndarray, sx: int, sy: int, canh: int, dam: float) -> np.ndarray:
+        ra = a.copy()
+        yy, xx = np.mgrid[0:canh, 0:canh]
+        hinh = (np.abs((xx - canh / 2) / (canh / 2)) ** 0.55
+                + np.abs((yy - canh / 2) / (canh / 2)) ** 0.55) <= 1
+        o = ra[sy : sy + canh, sx : sx + canh].astype(np.float32)
+        o[hinh] = o[hinh] * (1 - dam) + 255 * dam
+        ra[sy : sy + canh, sx : sx + canh] = o.astype(np.uint8)
+        return ra
+
+    def _trum(v: Vung | None, sx: int, sy: int, canh: int) -> bool:
+        return bool(v and v.x <= sx and v.y <= sy
+                    and v.x + v.w >= sx + canh and v.y + v.h >= sy + canh)
+
+    sx_l, sy_l = 1376 - 26 - 30, 768 - 26 - 30
+    v_xanh, gc_xanh = tim_logo_mot_anh(_dat_sao(_anh_kieu_flow(9), sx_l, sy_l, 30, 0.85))
+    log.info("   Tim logo tren 1 anh (nen xanh): %s | %s", v_xanh, gc_xanh)
+    if not _trum(v_xanh, sx_l, sy_l, 30):
+        loi.append("tim logo 1 anh: khong trum dau sao tren nen xanh")
+    if v_xanh and v_xanh.dien_tich > 0.01 * 1376 * 768:
+        loi.append(f"tim logo 1 anh: khung qua to ({v_xanh})")
+
+    v_vang, _ = tim_logo_mot_anh(_dat_sao(_anh_kieu_flow(4), sx_l, sy_l, 30, 0.85))
+    if not _trum(v_vang, sx_l, sy_l, 30):
+        loi.append("tim logo 1 anh: khong trum dau sao tren nen vang")
+
+    if tim_logo_mot_anh(_anh_kieu_flow(11))[0] is not None:
+        loi.append("tim logo 1 anh: anh khong co logo ma van bia ra mot vung")
+
     # --- 5. Va lai co that su sach khong ----------------------------------
     o = (slice(that.y, that.y + that.h), slice(that.x, that.x + that.w))
     truoc = float(np.abs(ban[0][o].astype(np.float32) - sach[0][o].astype(np.float32)).mean())
@@ -1337,7 +1435,7 @@ def phan_tich_tham_so(argv: Sequence[str]) -> argparse.Namespace:
     )
     p.add_argument("dau_vao", nargs="*", help="Anh/video hoac thu muc (mac dinh: WM_CHO)")
     p.add_argument("--vung", default="tu-dong",
-                   help="tu-dong | logo-duoi-phai (logo nho o goc) | duoi-phai | duoi-trai "
+                   help="tu-dong | tu-tim (do tung anh) | logo-duoi-phai | duoi-phai | duoi-trai "
                         "| tren-phai | tren-trai | duoi | tren | giua | x,y,w,h (pixel hoac %%)")
     p.add_argument("--cach", default="va", choices=["va", "va-mem", "to", "cat", "nhoe"],
                    help="va (mac dinh, giu net nen) | va-mem (khuech tan) | to | cat | nhoe")

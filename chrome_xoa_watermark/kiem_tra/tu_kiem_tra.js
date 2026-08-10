@@ -287,6 +287,50 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
 }
 
 // ---------------------------------------------------------------------------
+// 4c. Tim logo chi tu MOT anh (dung cho trang thu 1 anh)
+// ---------------------------------------------------------------------------
+
+{
+  function datSao(a, sx, sy, canh, dam) {
+    const d = new Uint8ClampedArray(a.du_lieu);
+    for (let y = sy; y < sy + canh; y++) {
+      for (let x = sx; x < sx + canh; x++) {
+        const dx = (x - sx - canh / 2) / (canh / 2), dy = (y - sy - canh / 2) / (canh / 2);
+        if (Math.pow(Math.abs(dx), 0.55) + Math.pow(Math.abs(dy), 0.55) <= 1) {
+          const i = (y * a.rong + x) * 4;
+          for (let c = 0; c < 3; c++) d[i + c] = d[i + c] * (1 - dam) + 255 * dam;
+        }
+      }
+    }
+    return { rong: a.rong, cao: a.cao, du_lieu: d };
+  }
+  function trumDuoc(v, sx, sy, canh) {
+    return v && v.x <= sx && v.y <= sy && v.x + v.w >= sx + canh && v.y + v.h >= sy + canh;
+  }
+
+  // dau sao tren nen xanh dam
+  const nenXanh = anhKieuFlow(9, 1376, 768);
+  let sx = 1376 - 26 - 30, sy = 768 - 26 - 30;
+  let kq = LOI.timLogoMotAnh(datSao(nenXanh, sx, sy, 30, 0.85));
+  console.log(`   Tim logo tren 1 anh (nen xanh): ${chuoiVung(kq.vung)} | ${kq.ghi_chu}`);
+  kiem(trumDuoc(kq.vung, sx, sy, 30), "khong trum dau sao tren nen xanh");
+  kiem(kq.vung && kq.vung.w * kq.vung.h < 0.01 * 1376 * 768, "khung tim duoc qua to");
+
+  // dau sao tren dai dat vang (nen sang)
+  const nenVang = anhKieuFlow(4, 1376, 768);
+  kq = LOI.timLogoMotAnh(datSao(nenVang, sx, sy, 30, 0.85));
+  kiem(trumDuoc(kq.vung, sx, sy, 30), "khong trum dau sao tren nen vang");
+
+  // goc duoi TRAI
+  kq = LOI.timLogoMotAnh(datSao(anhKieuFlow(5, 1376, 768), 26, 768 - 26 - 30, 30, 0.85));
+  kiem(kq.goc === "duoi-trai", `phai bao dung goc duoi-trai, dang bao ${kq.goc}`);
+
+  // anh khong co logo -> phai tra null, khong duoc bia ra vung
+  kiem(LOI.timLogoMotAnh(anhKieuFlow(11, 1376, 768)).vung === null,
+       "anh khong co logo ma van bia ra mot vung");
+}
+
+// ---------------------------------------------------------------------------
 // 5. Zip: ghi -> doc lai, va doc duoc entry nen deflate
 // ---------------------------------------------------------------------------
 

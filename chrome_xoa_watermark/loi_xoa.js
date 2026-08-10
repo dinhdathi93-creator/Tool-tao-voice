@@ -315,6 +315,104 @@
     return { vung: vung, ghi_chu: "do duoc tu " + xam.length + " anh" };
   }
 
+  /**
+   * Tim logo nho SANG MAU o cac goc, chi can MOT anh.
+   *
+   * Watermark kieu Flow / Gemini la dau sao trang nho nam sat mot goc anh. Tren
+   * mot anh don khong so duoc voi anh khac, nhung van nhan ra duoc: no sang han
+   * han nen quanh no, gan nhu khong mau (trang / xam), gon, va nam sat goc.
+   *
+   * Tra { vung, goc, ghi_chu } - vung = null neu khong chac.
+   */
+  function timLogoMotAnh(anh, tuyChon) {
+    tuyChon = tuyChon || {};
+    var W = anh.rong, H = anh.cao, d = anh.du_lieu;
+    var cacGoc = tuyChon.goc
+      ? [tuyChon.goc]
+      : ["duoi-phai", "duoi-trai", "tren-phai", "tren-trai"];
+    var tiRong = 0.18, tiCao = 0.22;
+    var tot = null;
+
+    for (var g = 0; g < cacGoc.length; g++) {
+      var ten = cacGoc[g];
+      var oW = Math.max(40, Math.round(W * tiRong));
+      var oH = Math.max(40, Math.round(H * tiCao));
+      var oX = ten.indexOf("phai") >= 0 ? W - oW : 0;
+      var oY = ten.indexOf("duoi") >= 0 ? H - oH : 0;
+
+      // nen cua o: lay trung vi do sang
+      var sang = [];
+      var x, y, i, j;
+      for (y = oY; y < oY + oH; y++) {
+        for (x = oX; x < oX + oW; x++) {
+          j = (y * W + x) * 4;
+          sang.push(0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]);
+        }
+      }
+      var sx = Float64Array.from(sang); sx.sort();
+      var nen = sx[Math.floor(sx.length / 2)];
+      var nguong = Math.max(18, (sx[Math.floor(sx.length * 0.995)] - nen) * 0.45);
+
+      var co = new Uint8Array(oW * oH);
+      var demCo = 0;
+      for (y = 0; y < oH; y++) {
+        for (x = 0; x < oW; x++) {
+          j = ((oY + y) * W + (oX + x)) * 4;
+          var lum = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+          var ruc = Math.max(d[j], d[j + 1], d[j + 2]) - Math.min(d[j], d[j + 1], d[j + 2]);
+          if (lum > nen + nguong && ruc < 60) { co[y * oW + x] = 1; demCo++; }
+        }
+      }
+      if (demCo < 12 || demCo > 0.25 * oW * oH) continue;
+
+      var cum = cacCum(noRongMatNa(co, oW, oH, 2), oW, oH);
+      for (var c = 0; c < Math.min(cum.length, 6); c++) {
+        var diem = cum[c];
+        if (diem.length < 12) continue;
+        var bb = baoQuanh([diem], oW);
+        var canh = Math.max(bb.w, bb.h);
+        if (canh < 8 || canh > 0.55 * Math.min(oW, oH)) continue;   // khong phai logo nho
+        if (bb.w > 4 * bb.h || bb.h > 4 * bb.w) continue;           // dai ngoang -> bo
+        var dac = diem.length / (bb.w * bb.h);
+        if (dac < 0.15) continue;
+
+        // trung binh do sang vuot nen, va khoang cach toi goc anh
+        var tong = 0;
+        for (var k = 0; k < diem.length; k++) {
+          var ii = diem[k];
+          var yy = (ii / oW) | 0, xx = ii - yy * oW;
+          var jj = ((oY + yy) * W + (oX + xx)) * 4;
+          tong += 0.299 * d[jj] + 0.587 * d[jj + 1] + 0.114 * d[jj + 2] - nen;
+        }
+        var vuot = tong / diem.length;
+        var gocX = ten.indexOf("phai") >= 0 ? oW : 0;
+        var gocY = ten.indexOf("duoi") >= 0 ? oH : 0;
+        var cach = Math.sqrt(
+          Math.pow(bb.x + bb.w / 2 - gocX, 2) + Math.pow(bb.y + bb.h / 2 - gocY, 2)
+        ) / Math.max(1, Math.min(oW, oH));
+        var diemSo = vuot * dac / (0.25 + cach);
+
+        if (!tot || diemSo > tot.diem_so) {
+          tot = {
+            diem_so: diemSo, goc: ten,
+            vung: noVung({ x: oX + bb.x, y: oY + bb.y, w: bb.w, h: bb.h },
+                         Math.max(3, Math.round(canh * 0.25)), W, H),
+            vuot: vuot,
+          };
+        }
+      }
+    }
+
+    if (!tot) {
+      return { vung: null, goc: null, ghi_chu: "khong thay dom sang nho nao o cac goc anh" };
+    }
+    return {
+      vung: tot.vung, goc: tot.goc,
+      ghi_chu: "tu tim thay o goc " + tot.goc.replace("-", " ")
+        + " (sang hon nen " + Math.round(tot.vuot) + " muc)",
+    };
+  }
+
   // -------------------------------------------------------------------------
   // 4. Mat na - chon dung pixel can xoa
   // -------------------------------------------------------------------------
@@ -761,6 +859,7 @@
     phanVi: phanVi,
     noRongMatNa: noRongMatNa,
     timVungTuDong: timVungTuDong,
+    timLogoMotAnh: timLogoMotAnh,
     taoMatNa: taoMatNa,
     vaLai: vaLai,
     vaCauTruc: vaCauTruc,

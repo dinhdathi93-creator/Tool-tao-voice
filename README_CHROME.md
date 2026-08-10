@@ -41,9 +41,10 @@ Trước khi đụng tới cả dự án 200 ảnh, **bấm đúp `THU_1_ANH.htm
 bất kỳ trình duyệt nào). Không cần cài tiện ích, không cần Developer mode, không cần mạng.
 
 1. Thả **một** ảnh vào.
-2. Nó vá thử ngay và hiện **trước / sau phóng to 4×** — logo bé như dấu ✦ thì phải nhìn
-   ở mức này mới biết sạch hay chưa.
-3. Khung chưa đúng thì **kéo chuột khoanh lại** trên ảnh bên trái.
+2. Nó **tự tìm cái logo** ngay trên ảnh đó (đốm sáng nhỏ, gọn, sát một góc), vá thử,
+   rồi hiện **trước / sau phóng to 4×** — logo bé như dấu ✦ thì phải nhìn ở mức này
+   mới biết sạch hay chưa.
+3. Tìm trượt thì **kéo chuột khoanh lại** trên ảnh bên trái, hoặc bấm **Tự tìm lại logo**.
 4. Ưng thì bấm **Tải ảnh đã xoá** để xem file thật, và bấm **Chép toạ độ vùng**.
 5. Dán toạ độ đó vào ô *“hoặc gõ x,y,rộng,cao”* của tiện ích → cả dự án dùng đúng khung
    bạn vừa duyệt. Toạ độ chỉ đúng cho ảnh **cùng kích thước**.
@@ -90,7 +91,7 @@ của Flow thì nhìn ảnh thu nhỏ không thấy gì đâu.
 
 | Mục | Nên chọn | Giải thích |
 |---|---|---|
-| **Watermark nằm ở đâu** | Tự động dò | So nhiều ảnh cùng bộ, chỗ nào ảnh nào cũng có nét sắc thì đó là logo. Cần ≥ 3 ảnh cùng kích thước, nền khác nhau |
+| **Watermark nằm ở đâu** | Tự động dò | So nhiều ảnh cùng bộ, chỗ nào ảnh nào cũng có nét sắc thì đó là logo. Cần ≥ 3 ảnh cùng kích thước, nền khác nhau. Không ra thì **tự lùi về cách tìm đốm sáng nhỏ ở góc ngay trên 1 ảnh** |
 | | **Logo nhỏ góc dưới phải** | Ô vuông nhỏ ở góc — đúng chỗ dấu ✦ của Flow / Gemini. Chọn cái này nếu tự động dò trượt |
 | | Cả góc dưới bên phải… | Ô to hơn, cho watermark dạng chữ dài |
 | | Gõ toạ độ `x,y,rộng,cao` | Khi bạn đã biết chính xác khung |
@@ -173,8 +174,15 @@ hết dọc mà hẹp, và mọi khối lớn hơn 15% diện tích ảnh. Còn 
 sắc nét, độ gọn và mức độ nằm sát rìa ảnh — logo thật gần như luôn là một đốm nhỏ,
 gọn, nằm sát mép.
 
-Vẫn trượt thì đừng chỉnh tới lui làm gì: **kéo chuột khoanh tay** trên ảnh soi trước,
-hoặc chọn *Logo nhỏ góc dưới phải*. Xong.
+Không ra thì nó tự chuyển sang cách thứ hai: **tìm đốm sáng nhỏ ở góc ngay trên một ảnh**.
+Logo Flow là đốm trắng, gọn, gần như không màu, nằm sát góc — ba đặc điểm đó đủ để nhận
+ra mà không cần so với ảnh khác. Cách này chạy được cả khi bạn chỉ có đúng 1 ảnh.
+
+Vẫn trượt thì đừng chỉnh tới lui làm gì: **kéo chuột khoanh tay** trên ảnh soi trước. Xong.
+
+> **Đừng khoanh rộng cho chắc.** Vá một ô có chi tiết thật (bậc thang, người, chữ) thì
+> kiểu gì cũng lộ — không thuật toán nào dựng lại được cái nó không nhìn thấy. Khoanh
+> sát cái logo thôi. Trang `THU_1_ANH.html` sẽ cảnh báo khi khung chiếm quá 3% ảnh.
 
 Vài trường hợp tiện ích **cố ý không chặn**: trang tự đặt `location.href` sang link
 tải, hoặc file tải qua một tab khác. Chặn mấy chỗ đó dễ làm hỏng thao tác khác của

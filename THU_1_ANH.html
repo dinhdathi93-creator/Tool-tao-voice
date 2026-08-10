@@ -44,6 +44,8 @@ input[type="text"] { margin-top: 6px; }
 #cKhung { cursor: crosshair; }
 #zTruoc, #zSau { image-rendering: pixelated; }
 .ghi-chu { margin-top: 16px; font-size: 12px; color: #9aa0a6; }
+.canh-bao { margin-top: 16px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
+  background: #2b2416; border: 1px solid #5c4a1e; color: #fdd663; }
 .ghi-chu b { color: #e8eaed; }
 </style>
 </head>
@@ -69,7 +71,8 @@ input[type="text"] { margin-top: 6px; }
       <div>
         <label for="vung">Watermark nằm ở đâu</label>
         <select id="vung">
-          <option value="logo-duoi-phai">Logo nhỏ góc dưới phải (dấu ✦ của Flow)</option>
+          <option value="tu-tim">Tự tìm logo trên ảnh này (nên dùng)</option>
+          <option value="logo-duoi-phai">Ô nhỏ góc dưới phải (dấu ✦ của Flow)</option>
           <option value="logo-duoi-trai">Logo nhỏ góc dưới trái</option>
           <option value="logo-tren-phai">Logo nhỏ góc trên phải</option>
           <option value="logo-tren-trai">Logo nhỏ góc trên trái</option>
@@ -122,10 +125,12 @@ input[type="text"] { margin-top: 6px; }
 
     <div class="hang-nut">
       <a id="taiVe" class="nut-chinh" download>⬇ Tải ảnh đã xoá</a>
+      <button id="tuTim" class="nut-phu" type="button">Tự tìm lại logo</button>
       <button id="chepToaDo" class="nut-phu" type="button">Chép toạ độ vùng</button>
       <button id="anhKhac" class="nut-phu" type="button">Thử ảnh khác</button>
     </div>
 
+    <div id="canhBao" class="canh-bao an"></div>
     <div class="ghi-chu" id="ghiChu"></div>
   </section>
 </div>
@@ -446,6 +451,104 @@ input[type="text"] { margin-top: 6px; }
       w: Math.ceil(vNho.w * hsX), h: Math.ceil(vNho.h * hsY),
     }, Math.max(2, Math.round(0.006 * rong)), rong, cao);
     return { vung: vung, ghi_chu: "do duoc tu " + xam.length + " anh" };
+  }
+
+  /**
+   * Tim logo nho SANG MAU o cac goc, chi can MOT anh.
+   *
+   * Watermark kieu Flow / Gemini la dau sao trang nho nam sat mot goc anh. Tren
+   * mot anh don khong so duoc voi anh khac, nhung van nhan ra duoc: no sang han
+   * han nen quanh no, gan nhu khong mau (trang / xam), gon, va nam sat goc.
+   *
+   * Tra { vung, goc, ghi_chu } - vung = null neu khong chac.
+   */
+  function timLogoMotAnh(anh, tuyChon) {
+    tuyChon = tuyChon || {};
+    var W = anh.rong, H = anh.cao, d = anh.du_lieu;
+    var cacGoc = tuyChon.goc
+      ? [tuyChon.goc]
+      : ["duoi-phai", "duoi-trai", "tren-phai", "tren-trai"];
+    var tiRong = 0.18, tiCao = 0.22;
+    var tot = null;
+
+    for (var g = 0; g < cacGoc.length; g++) {
+      var ten = cacGoc[g];
+      var oW = Math.max(40, Math.round(W * tiRong));
+      var oH = Math.max(40, Math.round(H * tiCao));
+      var oX = ten.indexOf("phai") >= 0 ? W - oW : 0;
+      var oY = ten.indexOf("duoi") >= 0 ? H - oH : 0;
+
+      // nen cua o: lay trung vi do sang
+      var sang = [];
+      var x, y, i, j;
+      for (y = oY; y < oY + oH; y++) {
+        for (x = oX; x < oX + oW; x++) {
+          j = (y * W + x) * 4;
+          sang.push(0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]);
+        }
+      }
+      var sx = Float64Array.from(sang); sx.sort();
+      var nen = sx[Math.floor(sx.length / 2)];
+      var nguong = Math.max(18, (sx[Math.floor(sx.length * 0.995)] - nen) * 0.45);
+
+      var co = new Uint8Array(oW * oH);
+      var demCo = 0;
+      for (y = 0; y < oH; y++) {
+        for (x = 0; x < oW; x++) {
+          j = ((oY + y) * W + (oX + x)) * 4;
+          var lum = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2];
+          var ruc = Math.max(d[j], d[j + 1], d[j + 2]) - Math.min(d[j], d[j + 1], d[j + 2]);
+          if (lum > nen + nguong && ruc < 60) { co[y * oW + x] = 1; demCo++; }
+        }
+      }
+      if (demCo < 12 || demCo > 0.25 * oW * oH) continue;
+
+      var cum = cacCum(noRongMatNa(co, oW, oH, 2), oW, oH);
+      for (var c = 0; c < Math.min(cum.length, 6); c++) {
+        var diem = cum[c];
+        if (diem.length < 12) continue;
+        var bb = baoQuanh([diem], oW);
+        var canh = Math.max(bb.w, bb.h);
+        if (canh < 8 || canh > 0.55 * Math.min(oW, oH)) continue;   // khong phai logo nho
+        if (bb.w > 4 * bb.h || bb.h > 4 * bb.w) continue;           // dai ngoang -> bo
+        var dac = diem.length / (bb.w * bb.h);
+        if (dac < 0.15) continue;
+
+        // trung binh do sang vuot nen, va khoang cach toi goc anh
+        var tong = 0;
+        for (var k = 0; k < diem.length; k++) {
+          var ii = diem[k];
+          var yy = (ii / oW) | 0, xx = ii - yy * oW;
+          var jj = ((oY + yy) * W + (oX + xx)) * 4;
+          tong += 0.299 * d[jj] + 0.587 * d[jj + 1] + 0.114 * d[jj + 2] - nen;
+        }
+        var vuot = tong / diem.length;
+        var gocX = ten.indexOf("phai") >= 0 ? oW : 0;
+        var gocY = ten.indexOf("duoi") >= 0 ? oH : 0;
+        var cach = Math.sqrt(
+          Math.pow(bb.x + bb.w / 2 - gocX, 2) + Math.pow(bb.y + bb.h / 2 - gocY, 2)
+        ) / Math.max(1, Math.min(oW, oH));
+        var diemSo = vuot * dac / (0.25 + cach);
+
+        if (!tot || diemSo > tot.diem_so) {
+          tot = {
+            diem_so: diemSo, goc: ten,
+            vung: noVung({ x: oX + bb.x, y: oY + bb.y, w: bb.w, h: bb.h },
+                         Math.max(3, Math.round(canh * 0.25)), W, H),
+            vuot: vuot,
+          };
+        }
+      }
+    }
+
+    if (!tot) {
+      return { vung: null, goc: null, ghi_chu: "khong thay dom sang nho nao o cac goc anh" };
+    }
+    return {
+      vung: tot.vung, goc: tot.goc,
+      ghi_chu: "tu tim thay o goc " + tot.goc.replace("-", " ")
+        + " (sang hon nen " + Math.round(tot.vuot) + " muc)",
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -894,6 +997,7 @@ input[type="text"] { margin-top: 6px; }
     phanVi: phanVi,
     noRongMatNa: noRongMatNa,
     timVungTuDong: timVungTuDong,
+    timLogoMotAnh: timLogoMotAnh,
     taoMatNa: taoMatNa,
     vaLai: vaLai,
     vaCauTruc: vaCauTruc,
@@ -955,12 +1059,26 @@ input[type="text"] { margin-top: 6px; }
     };
   }
 
+  function tuTimLogo() {
+    var kq = LOI.timLogoMotAnh(anhGoc);
+    if (kq.vung) {
+      vung = kq.vung;
+      return kq.ghi_chu;
+    }
+    vung = LOI.phanTichVung("logo-duoi-phai", anhGoc.rong, anhGoc.cao);
+    return "không tự tìm được logo — đang dùng ô nhỏ góc dưới phải, kéo chuột để chỉnh";
+  }
+
   function lamLai(ghiChu) {
     if (!anhGoc) return;
     var cd = docCaiDat();
     if (!vung || ghiChu === "doi-cai-dat") {
-      vung = LOI.phanTichVung(cd.vung, anhGoc.rong, anhGoc.cao)
-          || LOI.phanTichVung("logo-duoi-phai", anhGoc.rong, anhGoc.cao);
+      if (cd.vung === "tu-tim") {
+        ghiChu = tuTimLogo();
+      } else {
+        vung = LOI.phanTichVung(cd.vung, anhGoc.rong, anhGoc.cao)
+            || LOI.phanTichVung("logo-duoi-phai", anhGoc.rong, anhGoc.cao);
+      }
     }
     vung = LOI.gioiHan(vung, anhGoc.rong, anhGoc.cao);
 
@@ -970,7 +1088,21 @@ input[type="text"] { margin-top: 6px; }
 
     e("mota").textContent = "Ảnh " + anhGoc.rong + "×" + anhGoc.cao
       + " — vùng vá: x=" + vung.x + ", y=" + vung.y + ", rộng=" + vung.w + ", cao=" + vung.h
-      + (ghiChu === "keo-tay" ? " (bạn tự khoanh)" : "");
+      + (ghiChu === "keo-tay" ? " (bạn tự khoanh)"
+         : (ghiChu && ghiChu !== "doi-cai-dat" ? " (" + ghiChu + ")" : ""));
+
+    // Khung to bat thuong = dang trum ca noi dung that (bac thang, nguoi...).
+    // Va cho do thi kieu gi cung lo, nen phai noi ngay chu khong de nguoi dung
+    // chay ca lo roi moi phat hien.
+    var tiLeKhung = (vung.w * vung.h) / (anhGoc.rong * anhGoc.cao);
+    if (tiLeKhung > 0.03) {
+      e("canhBao").textContent = "⚠ Khung này chiếm " + (tiLeKhung * 100).toFixed(1)
+        + "% ảnh — to hơn nhiều so với một cái logo. Nếu trong khung có chi tiết thật "
+        + "(bậc thang, người, chữ…) thì vá xong chắc chắn lộ. Hãy khoanh sát cái logo thôi.";
+      e("canhBao").classList.remove("an");
+    } else {
+      e("canhBao").classList.add("an");
+    }
 
     ve(e("cKhung"), LOI.veKhung(anhGoc, vung));
     ve(e("cSach"), anhSach);
@@ -1033,6 +1165,13 @@ input[type="text"] { margin-top: 6px; }
     });
   });
   e("vungTuGo").addEventListener("change", function () { lamLai("doi-cai-dat"); });
+
+  e("tuTim").addEventListener("click", function () {
+    if (!anhGoc) return;
+    e("vung").value = "tu-tim";
+    e("vungTuGo").value = "";
+    lamLai("doi-cai-dat");
+  });
 
   e("anhKhac").addEventListener("click", function () {
     e("banLam").classList.add("an");

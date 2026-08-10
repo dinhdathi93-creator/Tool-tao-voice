@@ -44,13 +44,26 @@
       });
     });
     return day.then(function () {
-      if (anhMau.length < 3) {
-        return { vung: null, ghi_chu: "can it nhat 3 anh de tu do vi tri", kich_thuoc: null };
+      var kichThuoc = anhMau.length
+        ? { rong: anhMau[0].rong, cao: anhMau[0].cao } : null;
+
+      // du anh thi so ca bo cho chac
+      if (anhMau.length >= 3) {
+        var kq = LOI.timVungTuDong(anhMau);
+        if (kq.vung) return { vung: kq.vung, ghi_chu: kq.ghi_chu, kich_thuoc: kichThuoc };
       }
-      var kq = LOI.timVungTuDong(anhMau);
+      // it anh, hoac so ca bo khong ra: tim dom sang nho o goc ngay tren 1 anh
+      if (anhMau.length) {
+        var mot = LOI.timLogoMotAnh(anhMau[0]);
+        if (mot.vung) {
+          return { vung: mot.vung, ghi_chu: mot.ghi_chu, kich_thuoc: kichThuoc };
+        }
+      }
       return {
-        vung: kq.vung, ghi_chu: kq.ghi_chu,
-        kich_thuoc: { rong: anhMau[0].rong, cao: anhMau[0].cao },
+        vung: null, kich_thuoc: kichThuoc,
+        ghi_chu: anhMau.length < 3
+          ? "it anh qua va khong thay dom sang nho nao o goc"
+          : "khong thay net chung, cung khong thay dom sang nho nao o goc",
       };
     });
   }
