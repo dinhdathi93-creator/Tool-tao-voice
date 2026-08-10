@@ -9,6 +9,7 @@
 > **[README_CHROME.md](README_CHROME.md)** — bật nút gạt rồi tải dự án như thường.
 > Tiện ích chạy được cả trên Windows lẫn macOS; bản Python có `XOA_WATERMARK.bat`
 > cho Windows và `XOA_WATERMARK.command` cho macOS.
+> Muốn thử 1 ảnh trước mà không cài gì: bấm đúp `THU_1_ANH.html`.
 
 # TAO_VOICE — đọc kịch bản .txt thành WAV + SRT (Windows, CPU-only)
 

@@ -202,6 +202,11 @@ Tool-tao-voice\
 
 ## 10. Bản chạy trên trình duyệt
 
+Muốn thử nhanh **một ảnh** mà không cài gì: bấm đúp **`THU_1_ANH.html`** — trang đơn
+độc lập, thả 1 ảnh vào là thấy trước/sau phóng to 4×, kéo chuột khoanh vùng được, và
+chép được toạ độ để dùng cho cả lô.
+
+
 Làm ảnh bằng **Flow** thì có bản tiện ích Chrome dùng chung thuật toán này:
 **[README_CHROME.md](README_CHROME.md)**. Bật nút gạt, bấm tải dự án như bình thường,
 file zip tải về đã sạch watermark — không cần Python, không cần đụng tới ổ đĩa.

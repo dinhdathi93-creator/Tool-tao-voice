@@ -135,10 +135,19 @@ function soiTruoc() {
     if (!anhMuc.length) throw new Error("Không thấy ảnh nào (png/jpg/webp) trong gói này.");
     trangThai.anh_muc = anhMuc;
     trangThai.so_anh = anhMuc.length;
-    var tuDong = LOI.phanTichVung(cd.vung, 1000, 1000) === null;
+    var tuDong = LOI.phanTichVung(cd.vung, 1000, 1000) === null;   // co the bi ha xuong false ben duoi
     var doVung = tuDong ? XULY.doVungChoLo(anhMuc) : Promise.resolve({ vung: null, ghi_chu: "" });
 
     return doVung.then(function (kq) {
+      // It hon 3 anh thi khong the tu do duoc - lui ve o nho goc duoi phai
+      // (dung cho dau sao cua Flow) roi de nguoi dung keo chuot chinh lai,
+      // van hon la bao loi roi khong cho lam gi.
+      if (tuDong && !kq.vung && anhMuc.length < 3) {
+        kq = { vung: null, ghi_chu: "ít ảnh quá nên chưa tự dò được — đang dùng ô nhỏ "
+          + "góc dưới phải, kéo chuột trên ảnh để chỉnh lại" };
+        cd.vung = "logo-duoi-phai";
+        tuDong = false;
+      }
       if (tuDong && !kq.vung) {
         throw new Error("Không tự dò được vùng watermark (" + kq.ghi_chu
           + "). Hãy chọn góc cụ thể ở phần Cài đặt, hoặc thả lại file rồi kéo chuột "

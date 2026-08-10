@@ -35,6 +35,23 @@ Chrome sẽ nhắc "tiện ích ở chế độ nhà phát triển" mỗi lần 
 **Safari thì không** — Safari dùng định dạng tiện ích khác hẳn, phải đóng gói bằng
 Xcode mới cài được. Trên Mac cứ dùng Chrome cho việc này.
 
+## 0. Thử 1 ảnh trước đã — `THU_1_ANH.html`
+
+Trước khi đụng tới cả dự án 200 ảnh, **bấm đúp `THU_1_ANH.html`** (mở bằng Chrome hoặc
+bất kỳ trình duyệt nào). Không cần cài tiện ích, không cần Developer mode, không cần mạng.
+
+1. Thả **một** ảnh vào.
+2. Nó vá thử ngay và hiện **trước / sau phóng to 4×** — logo bé như dấu ✦ thì phải nhìn
+   ở mức này mới biết sạch hay chưa.
+3. Khung chưa đúng thì **kéo chuột khoanh lại** trên ảnh bên trái.
+4. Ưng thì bấm **Tải ảnh đã xoá** để xem file thật, và bấm **Chép toạ độ vùng**.
+5. Dán toạ độ đó vào ô *“hoặc gõ x,y,rộng,cao”* của tiện ích → cả dự án dùng đúng khung
+   bạn vừa duyệt. Toạ độ chỉ đúng cho ảnh **cùng kích thước**.
+
+Trang này dùng **chung một lõi xử lý** với tiện ích (file `loi_xoa.js` được nhúng thẳng
+vào trong), nên thấy sao ở đây thì cả lô ra đúng như vậy. Sửa lõi xong nhớ chạy lại
+`node chrome_xoa_watermark/tao_trang_thu.js` để dựng lại trang.
+
 ## 2. Dùng cách nào?
 
 Có 2 đường, dùng đường nào cũng ra kết quả như nhau.
@@ -191,6 +208,7 @@ chrome_xoa_watermark\
 ├─ popup.html/js/css    ← bảng cài đặt khi bấm biểu tượng
 ├─ xu_ly_goi.*          ← trang thả zip vào xử lý
 ├─ nen.js               ← service worker
+├─ tao_trang_thu.js     ← dựng THU_1_ANH.html (trang thử 1 ảnh)
 └─ kiem_tra\            ← bài tự kiểm tra (xem mục 7)
 ```
 
@@ -199,9 +217,10 @@ chrome_xoa_watermark\
 Cần [Node.js](https://nodejs.org/) để chạy:
 
 ```
-node chrome_xoa_watermark/kiem_tra/tu_kiem_tra.js          # lõi xử lý + đọc/ghi zip
-node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chan.js     # bộ chặn lúc tải file
-node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chrome.js   # chạy thật trong Chromium
+node chrome_xoa_watermark/kiem_tra/tu_kiem_tra.js            # lõi xử lý + đọc/ghi zip
+node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chan.js       # bộ chặn lúc tải file
+node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chrome.js     # tiện ích thật trong Chromium
+node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_trang_thu.js  # trang THU_1_ANH.html
 ```
 
 Bài thứ hai cần `npm i -D playwright` và tự dựng một gói zip 6 ảnh có watermark, nạp
