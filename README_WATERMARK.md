@@ -108,11 +108,30 @@ Khung đó dùng chung cho cả nhóm ảnh cùng kích thước, không dò l�
 
 | Cách | Làm gì | Hợp với |
 |---|---|---|
-| `va` *(mặc định)* | Vá theo **cấu trúc nền**: mỗi điểm nhìn sang trái/phải cùng hàng và trên/dưới cùng cột, tin hướng nào hai đầu cùng màu | Hầu hết trường hợp — giữ nguyên ranh giới sắc nét của ảnh vector / nền phẳng / chuyển màu |
+| `tu-dong` *(mặc định)* | Từ **6 ảnh cùng kích thước** trở lên: học ra chính lớp phủ mờ của logo rồi **trừ ngược nó ra**. Không đủ điều kiện thì tự lùi về `va` | Cả dự án ảnh cùng một chỗ logo — nhất là khi có ảnh logo đè lên người / đồ vật |
+| `go` | Bắt buộc gỡ lớp phủ (vẫn cần ≥ 6 ảnh, nếu học không ra thì báo rồi vá) | Khi muốn biết chắc nó có gỡ được không |
+| `va` | Vá theo **cấu trúc nền**: mỗi điểm nhìn sang trái/phải cùng hàng và trên/dưới cùng cột, tin hướng nào hai đầu cùng màu | Hầu hết trường hợp — giữ nguyên ranh giới sắc nét của ảnh vector / nền phẳng / chuyển màu |
 | `va-mem` | Vá kiểu khuếch tán, tán màu đều từ viền vào | Ảnh chụp nền rối. **Làm nhoè ranh giới sắc nét** nên đừng dùng cho ảnh vector |
 | `to` | Tô đè một màu lấy từ viền vùng | Nền đúng một màu |
 | `cat` | Cắt bỏ hẳn dải có watermark (thêm `--giu-kich-thuoc` để phóng lại như cũ) | Watermark sát mép, cắt đi không tiếc |
 | `nhoe` | Vỡ pixel vùng đó | Nền quá rối, vá không nổi — **che** chứ không phải xoá |
+
+### Gỡ lớp phủ hoạt động thế nào
+
+Watermark là một **lớp mờ dán lên ảnh**: `nhìn thấy = (1−alpha)×nền + alpha×màu logo`.
+`alpha` và màu logo giống hệt nhau ở mọi ảnh trong dự án, chỉ "nền" là mỗi ảnh một khác.
+Gom N ảnh lại thì mỗi điểm có N cặp (nền, nhìn thấy) — khớp một đường thẳng qua chúng là
+ra `alpha` và màu logo, rồi lấy lại nền thật bằng một phép trừ.
+
+Chỗ nào không có logo thì `alpha = 0` → **giữ nguyên từng pixel**, nên chân người, bậc
+thang, đường ranh màu nằm dưới logo không bị đụng tới. Chỗ giữa dấu ✦ đặc hoàn toàn thì
+nền bị che sạch, trừ không ra — nhưng nhờ biết chính xác alpha nên chỉ vá đúng mấy điểm
+đó, và pha dần giữa bản trừ với bản vá để không lộ đường viền.
+
+Đo trên 8 ảnh, 2 ảnh có cột trắng viền đen đi ngay qua chỗ logo (lệch so với nền sạch,
+thang 0–255): ảnh nền thoáng `vá 0,0 / gỡ 0,6`; ảnh logo đè lên vật thể
+`vá 28,4 → gỡ 1,1`. Việc học chỉ làm **một lần cho mỗi nhóm ảnh cùng kích thước**
+(lấy mẫu 16 ảnh đầu), sau đó mỗi ảnh chỉ còn phép trừ.
 
 ## 5. Chỉ vá đúng nét chữ — `--loc-mau`
 
@@ -154,7 +173,7 @@ ra ảnh, chạy `--xem-thu` trên ảnh đó để canh khung, rồi lấy to�
 | Tham số | Mặc định | Nghĩa |
 |---|---|---|
 | `--vung` | `tu-dong` | Vùng có watermark (mục 3) |
-| `--cach` | `va` | `va` / `va-mem` / `to` / `cat` / `nhoe` (mục 4) |
+| `--cach` | `tu-dong` | `tu-dong` / `go` / `va` / `va-mem` / `to` / `cat` / `nhoe` (mục 4) |
 | `--loc-mau` | `tat` | `tat` / `sang` / `toi` / `#RRGGBB` (mục 5) |
 | `--dung-sai` | tự | Độ rộng tay khi lọc màu |
 | `--no-rong` | `2` | Phình mặt nạ thêm mấy pixel |

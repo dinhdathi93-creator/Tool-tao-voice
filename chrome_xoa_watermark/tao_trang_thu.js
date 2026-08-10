@@ -17,14 +17,15 @@ const GIAO_DIEN = String.raw`
 <div class="bao">
   <header>
     <h1>Thử xoá watermark trước khi chạy cả dự án</h1>
-    <p>Thả <b>vài ảnh</b> của cùng dự án vào đây (3–8 ảnh là đẹp). Tool so các ảnh với nhau
-      để tìm đúng vị trí logo, rồi cho bạn lật từng ảnh xem thử — kể cả ảnh nào logo đè lên
-      người hay đồ vật. Mọi thứ xử lý ngay trong trình duyệt, ảnh không đi đâu cả.</p>
+    <p>Thả <b>vài ảnh</b> của cùng dự án vào đây (<b>6–10 ảnh là đẹp nhất</b>). Từ 6 ảnh trở lên,
+      tool <b>học ra chính cái lớp phủ mờ</b> của logo rồi gỡ đúng nó ra — nền phía dưới hiện lại
+      nguyên vẹn, kể cả khi logo đè lên người hay đồ vật. Mọi thứ xử lý ngay trong trình duyệt,
+      ảnh không đi đâu cả.</p>
   </header>
 
   <div id="tha" class="tha">
     <div class="tha-chu">Kéo thả ảnh vào đây</div>
-    <div class="tha-phu">1 ảnh cũng được, nhưng 3–8 ảnh cùng dự án thì dò chính xác hơn hẳn</div>
+    <div class="tha-phu">1 ảnh cũng chạy được, nhưng <b>từ 6 ảnh cùng dự án</b> mới gỡ được lớp phủ — đẹp hơn hẳn</div>
     <button id="chon" class="nut-chinh" type="button">Chọn ảnh…</button>
     <input id="file" type="file" accept="image/*" multiple hidden>
   </div>
@@ -49,7 +50,9 @@ const GIAO_DIEN = String.raw`
       <div>
         <label for="cach">Cách xử lý</label>
         <select id="cach">
-          <option value="va">Vá theo cấu trúc nền (nên dùng)</option>
+          <option value="tu-dong">Tự chọn: gỡ lớp phủ nếu đủ ảnh (nên dùng)</option>
+          <option value="go">Gỡ lớp phủ (bắt buộc ≥ 6 ảnh)</option>
+          <option value="va">Vá theo cấu trúc nền</option>
           <option value="va-mem">Vá mềm — khuếch tán</option>
           <option value="to">Tô màu nền</option>
         </select>
@@ -163,6 +166,7 @@ const DIEU_KHIEN = String.raw`
   var danhSach = [];        // [{ ten, anh }]
   var viTri = 0;
   var anhGoc = null, anhSach = null, vung = null, tenFile = "anh.png";
+  var moHinh = null, khoaMoHinh = "";   // lop phu da hoc duoc tu ca lo
 
   function doiKichThuoc(canvas, anh, rongToiDa) {
     var tiLe = Math.min(1, (rongToiDa || 500) / anh.rong);
@@ -244,6 +248,25 @@ const DIEU_KHIEN = String.raw`
     lamLai();          // giu nguyen khung, chi ve lai anh moi
   }
 
+  /** Cac anh cung kich thuoc voi anh dang xem - lo de hoc lop phu. */
+  function cungCoAnh() {
+    return danhSach.filter(function (m) {
+      return m.anh.rong === anhGoc.rong && m.anh.cao === anhGoc.cao;
+    });
+  }
+
+  /* Hoc lop phu nang, chi lam lai khi doi vung / doi bo anh. */
+  function layMoHinh() {
+    var bo = cungCoAnh();
+    if (bo.length < LOI.SO_ANH_TOI_THIEU) return null;
+    var khoa = anhGoc.rong + "x" + anhGoc.cao + "|" + vung.x + "," + vung.y + ","
+             + vung.w + "," + vung.h + "|" + bo.length;
+    if (khoa === khoaMoHinh) return moHinh;
+    moHinh = LOI.hocLopPhu(bo.map(function (m) { return m.anh; }), vung);
+    khoaMoHinh = moHinh ? khoa : "";
+    return moHinh;
+  }
+
   function lamLai(ghiChu) {
     if (!anhGoc) return;
     var cd = docCaiDat();
@@ -257,12 +280,41 @@ const DIEU_KHIEN = String.raw`
     }
     vung = LOI.gioiHan(vung, anhGoc.rong, anhGoc.cao);
 
-    anhSach = LOI.xoaWatermark(anhGoc, {
-      vung_pixel: vung, cach: cd.cach, loc_mau: cd.loc_mau, no_rong: cd.no_rong,
-    });
+    // Hoc lop phu mat vai giay -> bao cho nguoi dung biet roi moi lam, khong de
+    // trang dung im nhu treo.
+    var canHoc = (cd.cach === "tu-dong" || cd.cach === "go")
+              && cungCoAnh().length >= LOI.SO_ANH_TOI_THIEU
+              && !(moHinh && khoaMoHinh === anhGoc.rong + "x" + anhGoc.cao + "|" + vung.x + ","
+                   + vung.y + "," + vung.w + "," + vung.h + "|" + cungCoAnh().length);
+    if (canHoc) {
+      e("mota").textContent = "Đang học lớp phủ của logo từ " + cungCoAnh().length
+        + " ảnh… (chỉ làm một lần cho cả lô)";
+      setTimeout(function () { veKetQua(cd, ghiChu); }, 30);
+      return;
+    }
+    veKetQua(cd, ghiChu);
+  }
+
+  function veKetQua(cd, ghiChu) {
+    if (!anhGoc) return;
+    var mh = (cd.cach === "tu-dong" || cd.cach === "go") ? layMoHinh() : null;
+    var cachDaDung;
+    if (mh) {
+      anhSach = LOI.goLopPhu(anhGoc, mh);
+      cachDaDung = "gỡ lớp phủ, học từ " + mh.so_anh + " ảnh";
+    } else {
+      anhSach = LOI.xoaWatermark(anhGoc, {
+        vung_pixel: vung,
+        cach: cd.cach === "tu-dong" || cd.cach === "go" ? "va" : cd.cach,
+        loc_mau: cd.loc_mau, no_rong: cd.no_rong,
+      });
+      cachDaDung = cd.cach === "va-mem" ? "vá mềm"
+                 : cd.cach === "to" ? "tô màu nền" : "vá theo cấu trúc nền";
+    }
 
     e("mota").textContent = "Ảnh " + anhGoc.rong + "×" + anhGoc.cao
-      + " — vùng vá: x=" + vung.x + ", y=" + vung.y + ", rộng=" + vung.w + ", cao=" + vung.h
+      + " — vùng: x=" + vung.x + ", y=" + vung.y + ", rộng=" + vung.w + ", cao=" + vung.h
+      + " — cách: " + cachDaDung
       + (ghiChu === "keo-tay" ? " (bạn tự khoanh)"
          : (ghiChu && ghiChu !== "doi-cai-dat" ? " (" + ghiChu + ")" : ""));
 
@@ -276,7 +328,17 @@ const DIEU_KHIEN = String.raw`
         + "vào ô trên (kéo cả nhóm cùng lúc) — tool sẽ so các ảnh với nhau và tìm ra đúng chỗ. "
         + "Hoặc kéo chuột khoanh tay quanh cái logo.";
       e("canhBao").classList.remove("an");
-    } else if (tiLeKhung > 0.03) {
+    } else if (cd.cach === "go" && !mh) {
+      e("canhBao").innerHTML = "⚠ <b>Chưa gỡ được lớp phủ</b> — cần <b>ít nhất 6 ảnh cùng dự án, "
+        + "cùng kích thước</b> và nền dưới logo phải khác nhau giữa các ảnh. Đang tạm vá theo "
+        + "cấu trúc nền. Thả thêm ảnh vào là chạy được ngay.";
+      e("canhBao").classList.remove("an");
+    } else if (!mh && cd.cach === "tu-dong" && cungCoAnh().length < LOI.SO_ANH_TOI_THIEU) {
+      e("canhBao").innerHTML = "ⓘ Đang vá nền vì mới có " + cungCoAnh().length
+        + " ảnh. <b>Thả đủ 6 ảnh cùng dự án</b> là tool học được lớp phủ của logo và gỡ đúng nó "
+        + "ra — chỗ logo đè lên người/đồ vật cũng sạch, không còn vết vá.";
+      e("canhBao").classList.remove("an");
+    } else if (!mh && tiLeKhung > 0.03) {
       e("canhBao").textContent = "⚠ Khung này chiếm " + (tiLeKhung * 100).toFixed(1)
         + "% ảnh — to hơn nhiều so với một cái logo. Nếu trong khung có chi tiết thật "
         + "(bậc thang, người, chữ…) thì vá xong chắc chắn lộ. Hãy khoanh sát cái logo thôi.";
@@ -303,7 +365,13 @@ const DIEU_KHIEN = String.raw`
     e("taiVe").download = tenFile.replace(/(\.[a-z0-9]+)$/i, "_da_xoa$1");
 
     e("ghiChu").innerHTML =
-      "Ưng rồi thì bấm <b>Chép toạ độ vùng</b> — dán chuỗi <code>" + vung.x + "," + vung.y
+      (mh
+        ? "Đang <b>gỡ lớp phủ</b>: tool học từ " + mh.so_anh + " ảnh ra đúng độ mờ và màu của "
+          + "logo (" + mh.so_diem + " điểm ảnh dính logo), rồi trừ ngược lại. Chỗ nào không có "
+          + "logo thì giữ nguyên từng pixel — nên người, bậc thang, đường ranh màu trong khung "
+          + "đều không bị đụng tới. Lật ◀ ▶ soi vài ảnh nữa cho chắc.<br><br>"
+        : "")
+      + "Ưng rồi thì bấm <b>Chép toạ độ vùng</b> — dán chuỗi <code>" + vung.x + "," + vung.y
       + "," + vung.w + "," + vung.h + "</code> vào ô <i>“hoặc gõ x,y,rộng,cao”</i> của tiện ích "
       + "để cả dự án dùng đúng khung này. Toạ độ chỉ đúng cho ảnh cùng kích thước "
       + anhGoc.rong + "×" + anhGoc.cao + ".";
@@ -331,7 +399,7 @@ const DIEU_KHIEN = String.raw`
     e("banLam").classList.remove("an");
 
     var day = Promise.resolve([]);
-    cacFile.slice(0, 12).forEach(function (f) {
+    cacFile.slice(0, 16).forEach(function (f) {
       day = day.then(function (ds) {
         return docMotAnh(f).then(function (m) { ds.push(m); return ds; },
                                  function () { return ds; });
@@ -344,6 +412,7 @@ const DIEU_KHIEN = String.raw`
       anhGoc = ds[0].anh;
       tenFile = ds[0].ten;
       vung = null;
+      moHinh = null; khoaMoHinh = "";
       veSoAnh();
       lamLai("doi-cai-dat");
     });
@@ -381,6 +450,7 @@ const DIEU_KHIEN = String.raw`
     e("banLam").classList.add("an");
     e("file").value = "";
     danhSach = []; anhGoc = null; vung = null;
+    moHinh = null; khoaMoHinh = "";
   });
 
   e("chepToaDo").addEventListener("click", function () {

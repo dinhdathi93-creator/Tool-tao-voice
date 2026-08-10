@@ -74,11 +74,44 @@
     return ANH.docAnh(duLieu, ten).then(function (anh) {
       var vung = cd.vung_pixel || LOI.phanTichVung(cd.vung, anh.rong, anh.cao);
       if (!vung) throw new Error("chua xac dinh duoc vung watermark");
+
+      // Da hoc duoc lop phu tu ca lo thi GO NGUOC no ra - khong dung vao nen,
+      // nen chan nguoi / bac thang / duong ranh mau deu con nguyen.
+      if (cd.mo_hinh && !cd.xem_thu
+          && anh.rong === cd.mo_hinh.kich_thuoc.rong
+          && anh.cao === cd.mo_hinh.kich_thuoc.cao) {
+        return ANH.ghiAnh(LOI.goLopPhu(anh, cd.mo_hinh), ten, cd.chat_luong);
+      }
+
       var sach = LOI.xoaWatermark(anh, {
         vung_pixel: vung, cach: cd.cach, loc_mau: cd.loc_mau,
         dung_sai: cd.dung_sai, no_rong: cd.no_rong, xem_thu: cd.xem_thu,
       });
       return ANH.ghiAnh(sach, ten, cd.chat_luong);
+    });
+  }
+
+  /**
+   * Hoc lop phu tu vai anh dau cua lo. Tra Promise<mo_hinh | null>.
+   * Can it nhat LOI.SO_ANH_TOI_THIEU anh cung kich thuoc, va nen ben duoi logo
+   * phai co doi giua cac anh. Khong du dieu kien thi tra null -> quay ve va nen.
+   */
+  function hocLopPhuChoLo(cacMuc, vung, soMau) {
+    soMau = soMau || 14;
+    var anhMau = [];
+    var day = Promise.resolve();
+    cacMuc.slice(0, soMau).forEach(function (m) {
+      day = day.then(function () {
+        return m.doc().then(function (d) { return ANH.docAnh(d, m.ten); })
+          .then(function (a) { anhMau.push(a); })
+          .catch(function () { /* anh hong thi bo qua */ });
+      });
+    });
+    return day.then(function () {
+      if (anhMau.length < LOI.SO_ANH_TOI_THIEU) return null;
+      var mh = LOI.hocLopPhu(anhMau, vung);
+      if (mh) mh.kich_thuoc = { rong: anhMau[0].rong, cao: anhMau[0].cao };
+      return mh;
     });
   }
 
@@ -105,7 +138,22 @@
         var vungPixel = kq.vung;   // null = dung chuoi cai dat cho tung anh
         var raMuc = [];
         var xong = 0;
+        var moHinh = null;
         var day = Promise.resolve();
+
+        // Hoc lop phu truoc: cach nay khong dung vao nen nen anh nao co nguoi /
+        // do vat nam ngay duoi logo cung khong bi va nat.
+        day = day.then(function () {
+          var v0 = vungPixel;
+          if (!v0) {
+            try {
+              v0 = LOI.phanTichVung(cd.vung, kq.kich_thuoc ? kq.kich_thuoc.rong : 1000,
+                                    kq.kich_thuoc ? kq.kich_thuoc.cao : 1000);
+            } catch (e) { v0 = null; }
+          }
+          if (!v0) return null;
+          return hocLopPhuChoLo(anhMuc, v0).then(function (mh) { moHinh = mh; });
+        });
 
         muc.forEach(function (m) {
           day = day.then(function () {
@@ -120,7 +168,7 @@
               return xuLyMotAnh(d, m.ten, {
                 vung: cd.vung, vung_pixel: vungPixel, cach: cd.cach, loc_mau: cd.loc_mau,
                 dung_sai: cd.dung_sai, no_rong: cd.no_rong, chat_luong: cd.chat_luong,
-                xem_thu: cd.xem_thu,
+                xem_thu: cd.xem_thu, mo_hinh: moHinh,
               }).then(function (blobSach) {
                 raMuc.push({ ten: m.ten, du_lieu: blobSach });
               }).catch(function (e) {
@@ -141,6 +189,9 @@
             return {
               blob: blob, so_anh: xong, so_bo_qua: muc.length - anhMuc.length,
               vung: vungPixel, ghi_chu: kq.ghi_chu, loi: loi,
+              cach_da_dung: moHinh
+                ? "gỡ lớp phủ (học từ " + moHinh.so_anh + " ảnh)"
+                : "vá theo cấu trúc nền",
             };
           });
         });
@@ -187,6 +238,7 @@
     CAI_DAT_MAC_DINH: CAI_DAT_MAC_DINH,
     gopCaiDat: gopCaiDat,
     doVungChoLo: doVungChoLo,
+    hocLopPhuChoLo: hocLopPhuChoLo,
     xuLyMotAnh: xuLyMotAnh,
     xuLyZip: xuLyZip,
     xuLyNhieuAnh: xuLyNhieuAnh,

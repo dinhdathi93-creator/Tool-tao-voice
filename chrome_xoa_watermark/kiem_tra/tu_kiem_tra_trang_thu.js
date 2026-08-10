@@ -34,7 +34,10 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
   fs.writeFileSync(duongDan, ghiPng(ban));
   console.log(`   Anh thu: 1376x768, dau sao that o ${JSON.stringify(ban.sao)}`);
 
-  const trinhDuyet = await chromium.launch({ headless: false, args: ["--no-sandbox"] });
+  const trinhDuyet = await chromium.launch({
+    headless: false, args: ["--no-sandbox"],
+    executablePath: process.env.XW_CHROME || undefined,
+  });
   try {
     const trang = await trinhDuyet.newPage({ viewport: { width: 1200, height: 1000 } });
     const loiTrang = [];
@@ -222,6 +225,78 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
          `anh kho: con vet quanh logo (${doKho.quanh_logo.toFixed(2)}/255) - chan chua dung lai duoc`);
     kiem(doKho.ca_anh < 0.05, `anh kho: phan con lai bi doi (${doKho.ca_anh.toFixed(3)}/255)`);
     kiem(loiT2.length === 0, "trang nhieu anh co loi JS: " + loiT2.join(" | "));
+
+    // --- Du anh -> trang phai HOC LOP PHU chu khong va nua -------------------
+    // Bo 8 anh cung du an, hai anh cuoi co cot trang di ngay qua cho logo.
+    const { danLopPhu, anhNenDoi } = require("./lop_phu.js");
+    const gocLo = [];
+    for (let i = 0; i < 6; i++) gocLo.push(anhNenDoi(i * 7 + 3, false));
+    gocLo.push(anhNenDoi(101, true));
+    gocLo.push(anhNenDoi(202, true));
+    const duongDanLo = gocLo.map((g, i) => {
+      const p = path.join(thuMuc, `lo_${i + 1}.png`);
+      fs.writeFileSync(p, ghiPng(danLopPhu(g, { dam_giua: 1 })));
+      return p;
+    });
+    const saoLo = danLopPhu(gocLo[0], { dam_giua: 1 }).sao;
+
+    const t3 = await trinhDuyet.newPage({ viewport: { width: 1200, height: 1000 } });
+    const loiT3 = [];
+    t3.on("pageerror", (er) => loiT3.push(er.message));
+    await t3.goto("file://" + TRANG);
+    await t3.setInputFiles("#file", duongDanLo);
+    await t3.waitForSelector("#banLam:not(.an)", { timeout: 60000 });
+    await t3.waitForFunction(
+      () => !/Đang mở|Đang học/.test(document.getElementById("mota").textContent),
+      null, { timeout: 120000 });
+
+    const moTaLo = await t3.textContent("#mota");
+    console.log(`   ${moTaLo.trim()}`);
+    kiem(/cách: gỡ lớp phủ, học từ \d+ ảnh/.test(moTaLo),
+         "du 8 anh ma trang van khong go lop phu: " + moTaLo);
+
+    // lat sang anh KHO (thu 8) roi do anh tai ve
+    await t3.click("#anhTruoc");        // lui 1 tu anh 1 -> anh 8
+    kiem((await t3.textContent("#soAnh")).includes("Ảnh 8"), "lat khong toi anh thu 8");
+    const doLo = await t3.evaluate(async ([b64, sao]) => {
+      function tuB64(s) {
+        const bin = atob(s); const u = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        return u;
+      }
+      async function doc(nguon) {
+        const bm = await createImageBitmap(nguon instanceof Blob ? nguon : new Blob([nguon]));
+        const c = document.createElement("canvas");
+        c.width = bm.width; c.height = bm.height;
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(bm, 0, 0); bm.close();
+        const id = ctx.getImageData(0, 0, c.width, c.height);
+        return { rong: id.width, cao: id.height, du_lieu: id.data };
+      }
+      function sanh(a, b, v) {
+        let tong = 0, dem = 0;
+        for (let y = v.y; y < v.y + v.h; y++) {
+          for (let x = v.x; x < v.x + v.w; x++) {
+            const i = (y * a.rong + x) * 4;
+            for (let c = 0; c < 3; c++) { tong += Math.abs(a.du_lieu[i + c] - b.du_lieu[i + c]); dem++; }
+          }
+        }
+        return tong / Math.max(1, dem);
+      }
+      const raSach = await doc(await (await fetch(document.getElementById("taiVe").href)).blob());
+      const gocAnh = await doc(tuB64(b64));
+      return {
+        quanh_logo: sanh(raSach, gocAnh, { x: sao.x - 10, y: sao.y - 10, w: sao.w + 20, h: sao.h + 20 }),
+        ca_anh: sanh(raSach, gocAnh, { x: 0, y: 0, w: raSach.rong, h: raSach.cao }),
+      };
+    }, [ghiPng(gocLo[7]).toString("base64"), saoLo]);
+
+    console.log(`   Anh 8 (cot trang di qua logo): lech quanh logo `
+      + `${doLo.quanh_logo.toFixed(2)}, ca anh ${doLo.ca_anh.toFixed(3)}`);
+    kiem(doLo.quanh_logo < 5,
+         `go lop phu tren trang: con lech ${doLo.quanh_logo.toFixed(2)}/255`);
+    kiem(doLo.ca_anh < 0.05, `go lop phu ma dung ca anh (${doLo.ca_anh.toFixed(3)}/255)`);
+    kiem(loiT3.length === 0, "trang go lop phu co loi JS: " + loiT3.join(" | "));
 
     kiem(loiTrang.length === 0, "trang co loi JS: " + loiTrang.join(" | "));
   } catch (er) {

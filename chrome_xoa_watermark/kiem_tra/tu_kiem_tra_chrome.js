@@ -41,6 +41,30 @@ async function dungGoiKieuFlow(thuMuc) {
   return { duongDan, sach, sao };
 }
 
+/* Goi 8 anh cua cung mot du an: nen moi anh mot khac (ke ca ngay goc duoi phai)
+ * nen tien ich hoc duoc lop phu. Hai anh cuoi co cot trang vien den di ngay qua
+ * cho logo - do la cho cach va chiu thua. */
+async function dungGoiLopPhu(thuMuc) {
+  const { danLopPhu, anhNenDoi } = require("./lop_phu.js");
+  const sach = [];
+  const muc = [];
+  let sao = null;
+  for (let i = 0; i < 8; i++) {
+    const goc = anhNenDoi(i < 6 ? i * 7 + 3 : (i === 6 ? 101 : 202), i >= 6);
+    sach.push(ghiPng(goc));
+    const ban = danLopPhu(goc, { dam_giua: 1 });
+    sao = ban.sao;
+    muc.push({
+      ten: `du_an/canh_${String(i + 1).padStart(3, "0")}.png`,
+      du_lieu: new Uint8Array(ghiPng(ban)),
+    });
+  }
+  const blob = await ZIP.taoZip(muc);
+  const duongDan = path.join(thuMuc, "du_an_8_anh.zip");
+  fs.writeFileSync(duongDan, Buffer.from(await blob.arrayBuffer()));
+  return { duongDan, sach, sao };
+}
+
 async function dungGoiThu(thuMuc) {
   const sach = [];
   const muc = [];
@@ -69,6 +93,7 @@ async function dungGoiThu(thuMuc) {
 
   const trinhDuyet = await chromium.launchPersistentContext(hoSo, {
     headless: false,
+    executablePath: process.env.XW_CHROME || undefined,
     args: [
       `--disable-extensions-except=${GOC_EXT}`,
       `--load-extension=${GOC_EXT}`,
@@ -299,6 +324,65 @@ async function dungGoiThu(thuMuc) {
     });
 
     kiem(loiT2.length === 0, "trang kieu Flow co loi JS: " + loiT2.join(" | "));
+
+    // --- 6. Ca lo du anh: tien ich phai HOC LOP PHU roi go, khong va nua ----
+    const lo = await dungGoiLopPhu(thuMuc);
+    console.log(`   Goi 8 anh cung du an (2 anh co cot trang di qua logo), `
+      + `sao that ${JSON.stringify(lo.sao)}`);
+    const t3 = await trinhDuyet.newPage();
+    const loiT3 = [];
+    t3.on("pageerror", (er) => loiT3.push(er.message));
+    await t3.goto(`chrome-extension://${maExt}/xu_ly_goi.html`);
+    await t3.setInputFiles("#file", lo.duongDan);
+    await t3.waitForSelector("#xemTruoc:not(.an)", { timeout: 60000 });
+    await t3.click("#chay");
+    await t3.waitForSelector("#ketQua:not(.an)", { timeout: 300000 });
+
+    const chuLo = await t3.textContent("#chuKetQua");
+    console.log(`   ${chuLo.trim()}`);
+    kiem(/Cách dùng: gỡ lớp phủ \(học từ \d+ ảnh\)/.test(chuLo),
+         "ca lo 8 anh ma tien ich van va nen: " + chuLo);
+
+    const doLo = await t3.evaluate(async ([b64, sao]) => {
+      function tuB64(s) {
+        const bin = atob(s); const u = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+        return u;
+      }
+      function sanh(a, b, v) {
+        let tong = 0, dem = 0;
+        for (let y = v.y; y < v.y + v.h; y++) {
+          for (let x = v.x; x < v.x + v.w; x++) {
+            const i = (y * a.rong + x) * 4;
+            for (let c = 0; c < 3; c++) { tong += Math.abs(a.du_lieu[i + c] - b.du_lieu[i + c]); dem++; }
+          }
+        }
+        return tong / Math.max(1, dem);
+      }
+      const blob = await (await fetch(document.getElementById("taiVe").href)).blob();
+      const muc = (await window.XW_ZIP.docZip(blob)).filter((m) => window.XW_ANH.laAnh(m.ten));
+      const ra = [];
+      for (let i = 0; i < muc.length; i++) {
+        const raSach = await window.XW_ANH.docAnh(await muc[i].doc(), muc[i].ten);
+        const goc = await window.XW_ANH.docAnh(tuB64(b64[i]), "goc.png");
+        ra.push({
+          ten: muc[i].ten,
+          quanh_logo: sanh(raSach, goc,
+            { x: sao.x - 10, y: sao.y - 10, w: sao.w + 20, h: sao.h + 20 }),
+          ca_anh: sanh(raSach, goc, { x: 0, y: 0, w: raSach.rong, h: raSach.cao }),
+        });
+      }
+      return ra;
+    }, [lo.sach.map((b) => b.toString("base64")), lo.sao]);
+
+    let teNhat = 0;
+    doLo.forEach((l) => { teNhat = Math.max(teNhat, l.quanh_logo);
+      kiem(l.ca_anh < 0.05, `[ca lo] ${l.ten}: go lop phu ma dung ca anh (${l.ca_anh.toFixed(3)})`);
+    });
+    console.log(`   ${doLo.length} anh da go lop phu, cho te nhat con lech `
+      + `${teNhat.toFixed(2)}/255`);
+    kiem(teNhat < 5, `[ca lo] con lech ${teNhat.toFixed(2)}/255 quanh logo`);
+    kiem(loiT3.length === 0, "trang ca lo co loi JS: " + loiT3.join(" | "));
 
     kiem(loiTrang.length === 0, "trang xu ly co loi JS: " + loiTrang.join(" | "));
   } catch (er) {

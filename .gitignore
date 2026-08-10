@@ -40,3 +40,7 @@ WM_CHO/*
 WM_XONG/*
 !WM_XONG/.gitkeep
 .venv_test/
+
+# thu vien test (npm i --no-save playwright)
+node_modules/
+package-lock.json

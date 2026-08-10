@@ -296,7 +296,8 @@ e("chay").addEventListener("click", function () {
   var viec;
   if (trangThai.nguon.kieu === "zip") {
     viec = XULY.xuLyZip(trangThai.nguon.blob, caiDatChay, baoTien).then(function (kq) {
-      return { blob: kq.blob, ten: doiTen(trangThai.nguon.ten), so: kq.so_anh, loi: kq.loi };
+      return { blob: kq.blob, ten: doiTen(trangThai.nguon.ten), so: kq.so_anh,
+               loi: kq.loi, cach: kq.cach_da_dung };
     });
   } else {
     viec = XULY.xuLyNhieuAnh(trangThai.nguon.cac_file, caiDatChay, baoTien)
@@ -314,6 +315,7 @@ e("chay").addEventListener("click", function () {
     hienKhoi("ketQua", true);
     var giay = Math.round((Date.now() - batDau) / 1000);
     e("chuKetQua").textContent = "Đã xử lý " + kq.so + " ảnh trong " + giay + " giây."
+      + (kq.cach ? " Cách dùng: " + kq.cach + "." : "")
       + (kq.loi.length ? " " + kq.loi.length + " ảnh lỗi, giữ nguyên bản gốc." : "");
     var url = URL.createObjectURL(kq.blob);
     e("taiVe").href = url;

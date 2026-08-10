@@ -355,6 +355,66 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
 }
 
 // ---------------------------------------------------------------------------
+// 4d. Hoc lop phu tu ca lo roi go nguoc ra
+//
+// Day la ca ma cach VA chiu thua: logo de len vat the (cot trang vien den). Va
+// thi phai bia lai chi tiet -> lo. Go lop phu thi khong dung vao nen, chi tru
+// lai dung cai lop mo da dap len -> vat the con nguyen.
+// ---------------------------------------------------------------------------
+
+{
+  const { danLopPhu, anhNenDoi, lechTrung } = require("./lop_phu.js");
+
+  const gocLo = [];
+  for (let i = 0; i < 6; i++) gocLo.push(anhNenDoi(i * 7 + 3, false));
+  gocLo.push(anhNenDoi(101, true));      // co cot trang di ngay qua cho logo
+  gocLo.push(anhNenDoi(202, true));
+  const banLo = gocLo.map((g) => danLopPhu(g, { dam_giua: 1 }));  // giua dac han
+  const sao = banLo[0].sao;
+  const oDo = { x: sao.x - 10, y: sao.y - 10, w: sao.w + 20, h: sao.h + 20 };
+
+  kiem(LOI.hocLopPhu(banLo.slice(0, LOI.SO_ANH_TOI_THIEU - 1), sao) === null,
+       `duoi ${LOI.SO_ANH_TOI_THIEU} anh thi phai tra null chu khong duoc hoc bua`);
+
+  const moHinh = LOI.hocLopPhu(banLo, sao);
+  kiem(!!moHinh, "khong hoc duoc lop phu tu 8 anh cung lo");
+  if (moHinh) {
+    console.log(`   Hoc lop phu: ${moHinh.so_anh} anh, ${moHinh.so_diem} diem dinh logo `
+      + `(${moHinh.so_diem_dac} diem dac han)`);
+    kiem(moHinh.so_diem > 100 && moHinh.so_diem < 400,
+         `so diem hoc duoc (${moHinh.so_diem}) khong khop voi mot dau sao 30x30`);
+
+    let teNhat = 0, teNhatVa = 0;
+    banLo.forEach((b, i) => {
+      const raGo = LOI.goLopPhu(b, moHinh);
+      const raVa = LOI.xoaWatermark(b, { vung_pixel: sao, cach: "va", no_rong: 2 });
+      const dGo = lechTrung(raGo, gocLo[i], oDo);
+      const dVa = lechTrung(raVa, gocLo[i], oDo);
+      const caAnh = lechTrung(raGo, gocLo[i], { x: 0, y: 0, w: b.rong, h: b.cao });
+      if (i >= 6) { teNhat = Math.max(teNhat, dGo); teNhatVa = Math.max(teNhatVa, dVa); }
+      kiem(dGo < 1.5 || i >= 6, `anh de thu ${i}: go xong con lech ${dGo.toFixed(2)}/255`);
+      kiem(caAnh < 0.05, `anh thu ${i}: go lop phu ma dung vao ca anh (${caAnh.toFixed(3)}/255)`);
+    });
+    console.log(`   Anh logo de len vat the: va ${teNhatVa.toFixed(2)} -> go lop phu `
+      + `${teNhat.toFixed(2)} (thang 0-255)`);
+    kiem(teNhat < 5, `anh kho: go xong van con lech ${teNhat.toFixed(2)}/255`);
+    kiem(teNhat < teNhatVa / 4,
+         `anh kho: go lop phu (${teNhat.toFixed(2)}) phai hon han cach va (${teNhatVa.toFixed(2)})`);
+
+    // logo mo vua (khong co cho nao dac) cung phai go duoc
+    const banMo = gocLo.map((g) => danLopPhu(g, { dam_giua: 0.7 }));
+    const mhMo = LOI.hocLopPhu(banMo, sao);
+    kiem(!!mhMo, "khong hoc duoc lop phu mo vua");
+    if (mhMo) {
+      let te = 0;
+      banMo.forEach((b, i) => { te = Math.max(te, lechTrung(LOI.goLopPhu(b, mhMo), gocLo[i], oDo)); });
+      console.log(`   Logo mo vua (alpha 0.7): cho te nhat con lech ${te.toFixed(2)}`);
+      kiem(te < 5, `logo mo vua: con lech ${te.toFixed(2)}/255`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 5. Zip: ghi -> doc lai, va doc duoc entry nen deflate
 // ---------------------------------------------------------------------------
 

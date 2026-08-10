@@ -192,6 +192,7 @@
           taiXuong(kq.blob, ten);
           var thua = kq.loi.length ? " (" + kq.loi.length + " ảnh lỗi, giữ nguyên bản gốc)" : "";
           bao("Xong " + kq.so_anh + " ảnh" + thua
+            + (kq.cach_da_dung ? " — " + kq.cach_da_dung : "")
             + ". File đã tải xuống — chưa thấy thì bấm nút bên dưới.", "xanh");
         });
       }
