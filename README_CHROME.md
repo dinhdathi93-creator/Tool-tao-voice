@@ -96,7 +96,7 @@ của Flow thì nhìn ảnh thu nhỏ không thấy gì đâu.
 | Mục | Nên chọn | Giải thích |
 |---|---|---|
 | **Watermark nằm ở đâu** | Tự động dò | So nhiều ảnh cùng bộ, chỗ nào ảnh nào cũng có nét sắc thì đó là logo. Cần ≥ 3 ảnh cùng kích thước, nền khác nhau. Không ra thì **tự lùi về cách tìm đốm sáng nhỏ ở góc ngay trên 1 ảnh** |
-| | **Logo nhỏ góc dưới phải** | Ô vuông nhỏ ở góc — đúng chỗ dấu ✦ của Flow / Gemini. Chọn cái này nếu tự động dò trượt |
+| | **Logo nhỏ góc dưới phải** | Ô ở góc, kích thước đo theo dấu ✦ thật của Flow (trên ảnh 1376×768 nó nằm ở `1314,706` cỡ `42×42`). Chọn cái này nếu tự động dò trượt |
 | | Cả góc dưới bên phải… | Ô to hơn, cho watermark dạng chữ dài |
 | | Gõ toạ độ `x,y,rộng,cao` | Khi bạn đã biết chính xác khung |
 | | *Kéo chuột trên ảnh* | Chắc ăn nhất — khoanh tay đúng chỗ, không cần đoán |

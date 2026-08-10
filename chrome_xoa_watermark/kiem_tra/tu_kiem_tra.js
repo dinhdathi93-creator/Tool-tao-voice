@@ -287,6 +287,30 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
 }
 
 // ---------------------------------------------------------------------------
+// 4b-bis. O mac dinh phai trum DAU SAO THAT cua Flow
+// ---------------------------------------------------------------------------
+// Toa do do duoc tren anh that cua nguoi dung: 1314,706 co 42x42 tren anh
+// 1376x768. O mac dinh tung bi thu qua tay, hut mat mep tren cua logo dung
+// 1 pixel - anh ra van con mot mau dau sao.
+{
+  const THAT_1376 = { x: 1314, y: 706, w: 42, h: 42 };
+  [[1376, 768], [1920, 1080], [1280, 720], [1024, 1024]].forEach(function (kt) {
+    const rong = kt[0], cao = kt[1];
+    const t = {
+      x: Math.round(THAT_1376.x * rong / 1376), y: Math.round(THAT_1376.y * cao / 768),
+      w: Math.round(THAT_1376.w * rong / 1376), h: Math.round(THAT_1376.h * cao / 768),
+    };
+    const v = LOI.phanTichVung("logo-duoi-phai", rong, cao);
+    const trum = v.x <= t.x && v.y <= t.y && v.x + v.w >= t.x + t.w && v.y + v.h >= t.y + t.h;
+    kiem(trum, `o mac dinh ${chuoiVung(v)} khong trum dau sao ${chuoiVung(t)} tren anh ${rong}x${cao}`);
+    kiem(v.w * v.h < 0.012 * rong * cao,
+         `o mac dinh qua to tren anh ${rong}x${cao}: ${chuoiVung(v)}`);
+  });
+  console.log(`   O mac dinh tren 1376x768: ${chuoiVung(LOI.phanTichVung("logo-duoi-phai", 1376, 768))}`
+    + ` (dau sao that 1314,706,42,42)`);
+}
+
+// ---------------------------------------------------------------------------
 // 4c. Tim logo chi tu MOT anh (dung cho trang thu 1 anh)
 // ---------------------------------------------------------------------------
 

@@ -270,7 +270,13 @@ const DIEU_KHIEN = String.raw`
     // Va cho do thi kieu gi cung lo, nen phai noi ngay chu khong de nguoi dung
     // chay ca lo roi moi phat hien.
     var tiLeKhung = (vung.w * vung.h) / (anhGoc.rong * anhGoc.cao);
-    if (tiLeKhung > 0.03) {
+    if (ghiChu && ghiChu.indexOf("chưa tìm được") === 0) {
+      e("canhBao").innerHTML = "⚠ <b>Chưa tự tìm được logo trên ảnh này</b> — đang tạm dùng ô "
+        + "mặc định ở góc dưới phải. Cách chắc nhất: <b>thả thêm 2–3 ảnh nữa của cùng dự án</b> "
+        + "vào ô trên (kéo cả nhóm cùng lúc) — tool sẽ so các ảnh với nhau và tìm ra đúng chỗ. "
+        + "Hoặc kéo chuột khoanh tay quanh cái logo.";
+      e("canhBao").classList.remove("an");
+    } else if (tiLeKhung > 0.03) {
       e("canhBao").textContent = "⚠ Khung này chiếm " + (tiLeKhung * 100).toFixed(1)
         + "% ảnh — to hơn nhiều so với một cái logo. Nếu trong khung có chi tiết thật "
         + "(bậc thang, người, chữ…) thì vá xong chắc chắn lộ. Hãy khoanh sát cái logo thôi.";

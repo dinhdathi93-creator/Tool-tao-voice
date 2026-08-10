@@ -15,12 +15,13 @@
 
   var GOC_MAC_DINH = {
     "tu-dong": null,
-    // O nho sat goc - vua du trum dau sao cua Flow. De rong hon la nuot ca
-    // chan nguoi / bac thang nam gan do, va cho do thi kieu gi cung lo.
-    "logo-duoi-phai": [0.94, 0.92, 0.06, 0.08],
-    "logo-duoi-trai": [0.00, 0.92, 0.06, 0.08],
-    "logo-tren-phai": [0.94, 0.00, 0.06, 0.08],
-    "logo-tren-trai": [0.00, 0.00, 0.06, 0.08],
+    // O sat goc, do theo dau sao THAT cua Flow: tren anh 1376x768 no nam o
+    // 1314,706 co 42x42 - tuc la cach mep phai 1.5%..4.5% be rong va cach day
+    // 2.6%..8.1% chieu cao. O nay phai trum het khoang do va con chua le.
+    "logo-duoi-phai": [0.93, 0.88, 0.07, 0.12],
+    "logo-duoi-trai": [0.00, 0.88, 0.07, 0.12],
+    "logo-tren-phai": [0.93, 0.00, 0.07, 0.12],
+    "logo-tren-trai": [0.00, 0.00, 0.07, 0.12],
     "duoi-phai": [0.70, 0.86, 0.30, 0.14],
     "duoi-trai": [0.00, 0.86, 0.30, 0.14],
     "tren-phai": [0.70, 0.00, 0.30, 0.14],

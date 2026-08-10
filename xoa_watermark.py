@@ -83,12 +83,13 @@ DUOI_VIDEO = {".mp4", ".mov", ".mkv", ".avi", ".webm"}
 
 # khung mac dinh cho tung goc: (x, y, rong, cao) theo ti le anh
 GOC_MAC_DINH = {
-    # O nho sat goc (kieu dau sao cua Flow / Gemini) - vua du trum cai logo.
-    # De rong hon la nuot ca chan nguoi / bac thang nam gan do.
-    "logo-duoi-phai": (0.94, 0.92, 0.06, 0.08),
-    "logo-duoi-trai": (0.00, 0.92, 0.06, 0.08),
-    "logo-tren-phai": (0.94, 0.00, 0.06, 0.08),
-    "logo-tren-trai": (0.00, 0.00, 0.06, 0.08),
+    # O sat goc, do theo dau sao THAT cua Flow: tren anh 1376x768 no nam o
+    # 1314,706 co 42x42 - tuc la cach mep phai 1.5%..4.5% be rong va cach day
+    # 2.6%..8.1% chieu cao. O nay phai trum het khoang do va con chua le.
+    "logo-duoi-phai": (0.93, 0.88, 0.07, 0.12),
+    "logo-duoi-trai": (0.00, 0.88, 0.07, 0.12),
+    "logo-tren-phai": (0.93, 0.00, 0.07, 0.12),
+    "logo-tren-trai": (0.00, 0.00, 0.07, 0.12),
     # ca goc anh (watermark chu, dai hon)
     "duoi-phai": (0.70, 0.86, 0.30, 0.14),
     "duoi-trai": (0.00, 0.86, 0.30, 0.14),
@@ -1313,6 +1314,19 @@ def tu_kiem_tra() -> int:
         log.info("   Logo sat mep (%s): lech %.2f", ten_khung, lech_mep)
         if lech_mep > 1.0:
             loi.append(f"[{ten_khung}] con de lai vet o goc anh ({lech_mep:.2f}/255)")
+
+    # --- 4c-bis. O mac dinh phai trum DAU SAO THAT cua Flow ----------------
+    # Toa do do duoc tren anh that: 1314,706 co 42x42 tren anh 1376x768
+    for r_kt, c_kt in [(1376, 768), (1920, 1080), (1280, 720), (1024, 1024)]:
+        t_sao = Vung(round(1314 * r_kt / 1376), round(706 * c_kt / 768),
+                     round(42 * r_kt / 1376), round(42 * c_kt / 768))
+        v_mac = phan_tich_vung("logo-duoi-phai", r_kt, c_kt)
+        if not (v_mac.x <= t_sao.x and v_mac.y <= t_sao.y
+                and v_mac.x + v_mac.w >= t_sao.x + t_sao.w
+                and v_mac.y + v_mac.h >= t_sao.y + t_sao.h):
+            loi.append(f"o mac dinh {v_mac} khong trum dau sao {t_sao} tren anh {r_kt}x{c_kt}")
+        if v_mac.dien_tich >= 0.012 * r_kt * c_kt:
+            loi.append(f"o mac dinh qua to tren anh {r_kt}x{c_kt}: {v_mac}")
 
     # --- 4d. Tim logo chi tu MOT anh --------------------------------------
     def _dat_sao(a: np.ndarray, sx: int, sy: int, canh: int, dam: float) -> np.ndarray:
