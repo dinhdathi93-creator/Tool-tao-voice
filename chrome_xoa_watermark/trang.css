@@ -78,3 +78,19 @@
   background: #8ab4f8;
   transition: width .2s ease;
 }
+
+.xw-hop .xw-tai {
+  display: none;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #8ab4f8;
+  color: #14161a;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.xw-hop .xw-tai:hover { background: #a8c7fa; }

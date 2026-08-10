@@ -10,6 +10,8 @@
   var dangCho = new Map();     // ma -> resolve cho viec xin blob
   var maXin = 0;
   var dangChay = false;
+  var daTraVe = new Set();     // URL cua file chinh minh vua tra ve
+  var vuaXuLy = new Map();     // URL -> luc xu ly, de chan cu bam doi trong tich tac
 
   // --- Giao dien -------------------------------------------------------------
   var hop = document.createElement("div");
@@ -20,9 +22,11 @@
     '  <button class="xw-gat" type="button" aria-pressed="false"><span></span></button>' +
     "</div>" +
     '<div class="xw-trang-thai">Đang tắt — tải dự án về sẽ giữ nguyên watermark</div>' +
-    '<div class="xw-tien"><div class="xw-thanh"></div></div>';
+    '<div class="xw-tien"><div class="xw-thanh"></div></div>' +
+    '<a class="xw-tai" download></a>';
 
   var nutGat = hop.querySelector(".xw-gat");
+  var nutTai = hop.querySelector(".xw-tai");
   var dongTrangThai = hop.querySelector(".xw-trang-thai");
   var thanhTien = hop.querySelector(".xw-tien");
   var thanhTrong = hop.querySelector(".xw-thanh");
@@ -121,16 +125,29 @@
 
   function taiXuong(blob, ten) {
     var url = URL.createObjectURL(blob);
+
+    // Bao cho bo chan biet day la file cua CHINH tien ich - dung chan lai.
+    // Khong co buoc nay thi thanh vong lap: xong -> bam tai -> bi chan -> xong...
+    window.postMessage({ tu: "xw-trang", viec: "bo_qua_url", url: url }, "*");
+    daTraVe.add(url);
+
     var a = document.createElement("a");
     a.href = url;
     a.download = ten;
+    a.setAttribute("data-xw-bo-qua", "1");
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
-    setTimeout(function () {
-      a.remove();
-      URL.revokeObjectURL(url);
-    }, 30000);
+    setTimeout(function () { a.remove(); }, 5000);
+
+    // Chrome doi khi chan tai tu dong -> chua san mot nut de bam tay
+    nutTai.href = url;
+    nutTai.download = ten;
+    nutTai.textContent = "⬇ Tải " + ten;
+    nutTai.style.display = "block";
+
+    // giu blob song lau lau de con bam tay duoc
+    setTimeout(function () { URL.revokeObjectURL(url); daTraVe.delete(url); }, 10 * 60 * 1000);
   }
 
   function layFile(url) {
@@ -147,11 +164,19 @@
   }
 
   function nhanFile(url, tenGoiY) {
+    if (daTraVe.has(url)) return;                      // file cua chinh minh tra ve
+    // cung mot URL bi bao hai lan trong tich tac (bam doi) thi chi lam mot lan,
+    // nhung sau vai giay ma nguoi dung bam tai lai that thi van chay binh thuong
+    var lucTruoc = vuaXuLy.get(url);
+    if (lucTruoc && Date.now() - lucTruoc < 5000) return;
     if (dangChay) {
       bao("Đang bận xử lý file trước, thử lại sau", "vang");
       return;
     }
+    vuaXuLy.set(url, Date.now());
+    if (vuaXuLy.size > 20) vuaXuLy.delete(vuaXuLy.keys().next().value);
     dangChay = true;
+    nutTai.style.display = "none";
     var ten = tenTuUrl(url, tenGoiY);
     bao("Đang lấy file: " + ten);
 
@@ -166,13 +191,14 @@
           xongTien();
           taiXuong(kq.blob, ten);
           var thua = kq.loi.length ? " (" + kq.loi.length + " ảnh lỗi, giữ nguyên bản gốc)" : "";
-          bao("Xong " + kq.so_anh + " ảnh" + thua + " — file đã tải xuống", "xanh");
+          bao("Xong " + kq.so_anh + " ảnh" + thua
+            + ". File đã tải xuống — chưa thấy thì bấm nút bên dưới.", "xanh");
         });
       }
       bao("Đang xoá watermark 1 ảnh...");
       return XULY.xuLyMotAnh(blob, ten, caiDat).then(function (sach) {
         taiXuong(sach, ten);
-        bao("Xong — ảnh đã tải xuống", "xanh");
+        bao("Xong. Ảnh đã tải xuống — chưa thấy thì bấm nút bên dưới.", "xanh");
       });
     }).catch(function (e) {
       xongTien();

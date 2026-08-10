@@ -47,6 +47,10 @@ Có 2 đường, dùng đường nào cũng ra kết quả như nhau.
 3. Bấm **tải dự án**. Tiện ích chặn file lại, xoá watermark từng ảnh (có thanh tiến
    độ), rồi trả lại đúng file zip đó cho bạn tải xuống.
 
+Xong thì file tự tải xuống, **và ô nhỏ hiện thêm nút `⬇ Tải …`** để bấm tay phòng khi
+Chrome chặn tải tự động. Đừng đóng tab Flow trong lúc nó đang chạy — xử lý diễn ra ngay
+trong tab đó, đóng là mất hết công.
+
 **Nếu Flow đổi cách tải file, đường này có thể không bắt được.** Lúc đó ô nhỏ sẽ báo
 lỗi và nhắc bạn chuyển sang đường B. Xem thêm mục 5.
 
@@ -144,6 +148,20 @@ Vài trường hợp tiện ích **cố ý không chặn**: trang tự đặt `l
 tải, hoặc file tải qua một tab khác. Chặn mấy chỗ đó dễ làm hỏng thao tác khác của
 Flow nên tôi để nguyên.
 
+## 5c. Chạy hoài không ra file (đã sửa ở bản 1.1)
+
+Triệu chứng: bật nút gạt, bấm tải dự án, ô nhỏ chạy `Đang xoá watermark 105/198…` hết
+lượt này đến lượt khác mà không bao giờ ra file.
+
+Nguyên nhân: xử lý xong, tiện ích bấm một thẻ `<a download>` để trả file về — nhưng
+**chính bộ chặn của nó lại tóm luôn cú bấm đó**, huỷ tải rồi bắt đầu xử lý lại từ đầu.
+Vòng lặp vô tận.
+
+Bản 1.1 đánh dấu file do chính tiện ích trả về (thuộc tính `data-xw-bo-qua` cộng một
+danh sách URL báo trước cho bộ chặn) nên nó không tự tóm mình nữa, và thêm nút bấm tay
+phòng khi Chrome chặn tải tự động. Bài `kiem_tra/tu_kiem_tra_chan.js` dựng lại đúng
+tình huống này trên một DOM giả để nó không tái phát.
+
 ## 6. Cấu trúc thư mục
 
 ```
@@ -167,6 +185,7 @@ Cần [Node.js](https://nodejs.org/) để chạy:
 
 ```
 node chrome_xoa_watermark/kiem_tra/tu_kiem_tra.js          # lõi xử lý + đọc/ghi zip
+node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chan.js     # bộ chặn lúc tải file
 node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chrome.js   # chạy thật trong Chromium
 ```
 

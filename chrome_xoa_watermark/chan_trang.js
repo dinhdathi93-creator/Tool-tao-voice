@@ -21,6 +21,7 @@
   var BAT = false;                 // nut gat, trang.js cap nhat xuong
   var CHAN_DOAN = false;
   var kho = new Map();             // blob URL -> Blob
+  var khoBoQua = new Set();        // URL do chinh tien ich tra ve - khong chan lai
   var soThuTu = 0;
 
   window.addEventListener("message", function (su) {
@@ -28,6 +29,9 @@
     if (su.data.viec === "cai_dat") {
       BAT = !!su.data.bat;
       CHAN_DOAN = !!su.data.chan_doan;
+    } else if (su.data.viec === "bo_qua_url") {
+      khoBoQua.add(su.data.url);
+      if (khoBoQua.size > 20) khoBoQua.delete(khoBoQua.values().next().value);
     } else if (su.data.viec === "xin_blob") {
       var b = kho.get(su.data.url);
       window.postMessage({ tu: "xw-chan", viec: "tra_blob", ma: su.data.ma, blob: b || null }, "*");
@@ -76,6 +80,12 @@
   // --- 2. Chan cu bam vao the <a> -------------------------------------------
   function xuLyThe(the) {
     if (!BAT || !the || !the.href) return false;
+
+    // File do CHINH tien ich tra ve thi khong duoc chan lai, khong thi thanh
+    // vong lap: xu ly xong -> bam tai xuong -> bi chan -> xu ly lai...
+    if (the.getAttribute && the.getAttribute("data-xw-bo-qua")) return false;
+    if (khoBoQua.has(the.href)) return false;
+
     var tenGoiY = the.getAttribute("download") || "";
     if (!laFileTai(the.href, the.hasAttribute("download"))) {
       ghiChanDoan("a.click (bo qua)", the.href, tenGoiY);
@@ -105,7 +115,7 @@
   // --- 3. Chan window.open ---------------------------------------------------
   var moGoc = window.open;
   window.open = function (url) {
-    if (BAT && url && laFileTai(url, false)) {
+    if (BAT && url && !khoBoQua.has(String(url)) && laFileTai(url, false)) {
       ghiChanDoan("window.open (chan)", url);
       bao("tai_file", { url: String(url), ten: "", ma: ++soThuTu });
       return null;
