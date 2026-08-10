@@ -119,19 +119,29 @@ Khung đó dùng chung cho cả nhóm ảnh cùng kích thước, không dò l�
 ### Gỡ lớp phủ hoạt động thế nào
 
 Watermark là một **lớp mờ dán lên ảnh**: `nhìn thấy = (1−alpha)×nền + alpha×màu logo`.
-`alpha` và màu logo giống hệt nhau ở mọi ảnh trong dự án, chỉ "nền" là mỗi ảnh một khác.
-Gom N ảnh lại thì mỗi điểm có N cặp (nền, nhìn thấy) — khớp một đường thẳng qua chúng là
-ra `alpha` và màu logo, rồi lấy lại nền thật bằng một phép trừ.
+`alpha` và màu logo giống hệt nhau ở mọi ảnh trong dự án. Biết chúng rồi thì lấy lại nền
+thật chỉ là một phép trừ, và **chỗ nào không có logo thì alpha = 0 → giữ nguyên từng
+pixel**, nên chân người, bậc thang, đường ranh màu nằm dưới logo không bị đụng tới.
 
-Chỗ nào không có logo thì `alpha = 0` → **giữ nguyên từng pixel**, nên chân người, bậc
-thang, đường ranh màu nằm dưới logo không bị đụng tới. Chỗ giữa dấu ✦ đặc hoàn toàn thì
-nền bị che sạch, trừ không ra — nhưng nhờ biết chính xác alpha nên chỉ vá đúng mấy điểm
-đó, và pha dần giữa bản trừ với bản vá để không lộ đường viền.
+Đo `alpha` **trong từng ảnh một**: vá tạm chỗ bị che để có nền đoán, rồi
+`nhìn thấy − nền = alpha × (màu logo − nền)`. Ảnh nào có vật thể ngay dưới logo thì nền
+đoán sai — nhưng logo thật phải giống nhau ở mọi ảnh, nên lấy **trung vị qua tất cả ảnh
+và cả 3 kênh màu** là loại sạch mấy ảnh vá nhầm. Cách này không cần nền đổi giữa các ảnh,
+nên ảnh vector phẳng (góc ảnh giống hệt nhau ở mọi cảnh) chạy rất ngọt.
 
-Đo trên 8 ảnh, 2 ảnh có cột trắng viền đen đi ngay qua chỗ logo (lệch so với nền sạch,
-thang 0–255): ảnh nền thoáng `vá 0,0 / gỡ 0,6`; ảnh logo đè lên vật thể
-`vá 28,4 → gỡ 1,1`. Việc học chỉ làm **một lần cho mỗi nhóm ảnh cùng kích thước**
-(lấy mẫu 16 ảnh đầu), sau đó mỗi ảnh chỉ còn phép trừ.
+Chỗ giữa dấu ✦ đặc hoàn toàn thì nền mất hẳn, trừ không ra — nhưng nhờ biết chính xác
+`alpha` nên chỉ vá đúng mấy điểm đó, và pha dần giữa bản trừ với bản vá để không lộ viền.
+
+**Nó cũng là bộ dò watermark tốt nhất.** Bộ dò cũ tìm nét sắc / đốm sáng, mà trên ảnh
+vector phẳng bàn chân trắng còn sáng hơn watermark nhiều — nên nó bám vào bàn chân rồi vá
+nát chỗ đó. Bây giờ tool thử học lớp phủ ở **từng góc ảnh**, góc nào có lớp phủ thật mới
+học ra được. Đo trên bộ ảnh kiểu kênh: bộ dò nét sắc báo `75,709` (bàn chân), cách này báo
+`1320,712` — đúng dấu ✦ thật.
+
+Số đo trên 8 ảnh, 2 ảnh có bàn chân ngay dưới logo (lệch so với nền sạch, thang 0–255):
+ảnh nền thoáng `vá 0,00 / gỡ 0,09`; ảnh logo đè lên bàn chân `vá 11,29 → gỡ 0,13`. Việc
+học chỉ làm **một lần cho mỗi nhóm ảnh cùng kích thước** (lấy mẫu 16 ảnh đầu), sau đó mỗi
+ảnh chỉ còn phép trừ.
 
 ## 5. Chỉ vá đúng nét chữ — `--loc-mau`
 

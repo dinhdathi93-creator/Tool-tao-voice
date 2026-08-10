@@ -41,18 +41,18 @@ async function dungGoiKieuFlow(thuMuc) {
   return { duongDan, sach, sao };
 }
 
-/* Goi 8 anh cua cung mot du an: nen moi anh mot khac (ke ca ngay goc duoi phai)
- * nen tien ich hoc duoc lop phu. Hai anh cuoi co cot trang vien den di ngay qua
- * cho logo - do la cho cach va chiu thua. */
+/* Goi 8 anh DUNG KIEU KENH: vector phang, goc duoi phai cua moi anh giong het
+ * nhau (nen navy + dai dat vang), hai anh cuoi co ban chan dung ngay duoi logo.
+ * Day la dung loai anh cua nguoi dung - va vao la lo, phai go lop phu. */
 async function dungGoiLopPhu(thuMuc) {
-  const { danLopPhu, anhNenDoi } = require("./lop_phu.js");
+  const { anhKieuKenh, danSaoMo } = require("./anh_kieu_kenh.js");
   const sach = [];
   const muc = [];
   let sao = null;
   for (let i = 0; i < 8; i++) {
-    const goc = anhNenDoi(i < 6 ? i * 7 + 3 : (i === 6 ? 101 : 202), i >= 6);
+    const goc = anhKieuKenh(i * 7 + 3, i >= 6);
     sach.push(ghiPng(goc));
-    const ban = danLopPhu(goc, { dam_giua: 1 });
+    const ban = danSaoMo(goc, { dam_giua: 0.55 });
     sao = ban.sao;
     muc.push({
       ten: `du_an/canh_${String(i + 1).padStart(3, "0")}.png`,
@@ -327,8 +327,8 @@ async function dungGoiThu(thuMuc) {
 
     // --- 6. Ca lo du anh: tien ich phai HOC LOP PHU roi go, khong va nua ----
     const lo = await dungGoiLopPhu(thuMuc);
-    console.log(`   Goi 8 anh cung du an (2 anh co cot trang di qua logo), `
-      + `sao that ${JSON.stringify(lo.sao)}`);
+    console.log(`   Goi 8 anh kieu kenh (vector phang, goc anh giong het nhau, `
+      + `2 anh co ban chan duoi logo), sao that ${JSON.stringify(lo.sao)}`);
     const t3 = await trinhDuyet.newPage();
     const loiT3 = [];
     t3.on("pageerror", (er) => loiT3.push(er.message));
@@ -381,7 +381,7 @@ async function dungGoiThu(thuMuc) {
     });
     console.log(`   ${doLo.length} anh da go lop phu, cho te nhat con lech `
       + `${teNhat.toFixed(2)}/255`);
-    kiem(teNhat < 5, `[ca lo] con lech ${teNhat.toFixed(2)}/255 quanh logo`);
+    kiem(teNhat < 1, `[ca lo] con lech ${teNhat.toFixed(2)}/255 quanh logo`);
     kiem(loiT3.length === 0, "trang ca lo co loi JS: " + loiT3.join(" | "));
 
     kiem(loiTrang.length === 0, "trang xu ly co loi JS: " + loiTrang.join(" | "));

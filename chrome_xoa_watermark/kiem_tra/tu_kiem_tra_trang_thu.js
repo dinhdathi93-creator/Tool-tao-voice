@@ -47,8 +47,9 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
     await trang.goto("file://" + TRANG);
     await trang.setInputFiles("#file", duongDan);
     await trang.waitForSelector("#banLam:not(.an)", { timeout: 30000 });
-    await trang.waitForFunction(() => !/Đang mở/.test(document.getElementById("mota").textContent),
-                                null, { timeout: 30000 });
+    await trang.waitForFunction(
+      () => !/Đang mở|Đang học/.test(document.getElementById("mota").textContent),
+      null, { timeout: 60000 });
 
     const moTa = await trang.textContent("#mota");
     console.log(`   ${moTa.trim()}`);
@@ -155,12 +156,14 @@ function kiem(dat, ghiChu) { if (!dat) loi.push(ghiChu); }
     await t2.goto("file://" + TRANG);
     await t2.setInputFiles("#file", nhieu);
     await t2.waitForSelector("#banLam:not(.an)", { timeout: 30000 });
-    await t2.waitForFunction(() => !/Đang mở/.test(document.getElementById("mota").textContent),
-                             null, { timeout: 30000 });
+    await t2.waitForFunction(
+      () => !/Đang mở|Đang học/.test(document.getElementById("mota").textContent),
+      null, { timeout: 60000 });
 
     const moTaBo = await t2.textContent("#mota");
     console.log(`   ${moTaBo.trim()}`);
-    kiem(/so \d+ ảnh với nhau/.test(moTaBo), "co >=3 anh ma khong so ca bo: " + moTaBo);
+    kiem(/so \d+ ảnh với nhau/.test(moTaBo) || /gỡ lớp phủ/.test(moTaBo),
+         "co >=3 anh ma khong so ca bo: " + moTaBo);
     kiem((await t2.textContent("#soAnh")).includes("/ 4"), "khong dem du 4 anh");
     const khungBo = moTaBo.match(/x=(\d+), y=(\d+), rộng=(\d+), cao=(\d+)/);
     kiem(!!khungBo, "khong doc duoc khung do tu ca bo");

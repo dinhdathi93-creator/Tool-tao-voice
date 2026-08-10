@@ -41,8 +41,8 @@ Trước khi đụng tới cả dự án 200 ảnh, **bấm đúp `THU_1_ANH.htm
 bất kỳ trình duyệt nào). Không cần cài tiện ích, không cần Developer mode, không cần mạng.
 
 1. Thả **6–10 ảnh** của cùng dự án vào — nhớ chọn cả mấy ảnh khó (logo đè lên người,
-   đè lên đồ vật). Một ảnh cũng chạy được, nhưng **từ 6 ảnh trở lên** mới gỡ được lớp phủ
-   (mục 4c), và đó là cách cho kết quả sạch nhất.
+   đè lên đồ vật). Một ảnh cũng chạy được, nhưng **từ 4 ảnh trở lên** mới gỡ được lớp phủ
+   (mục 4c), và đó là cách cho kết quả sạch nhất — càng nhiều ảnh càng chắc.
 2. Tool **so các ảnh với nhau** để tìm đúng chỗ logo (logo nằm cố định một chỗ cả dự án,
    nên ảnh nào bị che vẫn lấy được vị trí từ những ảnh khác), **học ra chính cái lớp phủ
    mờ của logo** rồi gỡ đúng nó ra, và hiện **trước / sau phóng to 4×** — logo bé như dấu ✦
@@ -96,14 +96,14 @@ của Flow thì nhìn ảnh thu nhỏ không thấy gì đâu.
 
 | Mục | Nên chọn | Giải thích |
 |---|---|---|
-| **Watermark nằm ở đâu** | Tự động dò | So nhiều ảnh cùng bộ, chỗ nào ảnh nào cũng có nét sắc thì đó là logo. Cần ≥ 3 ảnh cùng kích thước, nền khác nhau. Không ra thì **tự lùi về cách tìm đốm sáng nhỏ ở góc ngay trên 1 ảnh** |
+| **Watermark nằm ở đâu** | Tự động dò | Thử **học lớp phủ ở từng góc ảnh** — góc nào có lớp phủ thật mới học ra được, và khung nó chỉ ra ôm sát đúng cái logo (mục 4c). Không ra thì lùi về so nét sắc giữa các ảnh, rồi tìm đốm sáng nhỏ ở góc trên 1 ảnh |
 | | **Logo nhỏ góc dưới phải** | Ô ở góc, kích thước đo theo dấu ✦ thật của Flow (trên ảnh 1376×768 nó nằm ở `1314,706` cỡ `42×42`). Chọn cái này nếu tự động dò trượt |
 | | Cả góc dưới bên phải… | Ô to hơn, cho watermark dạng chữ dài |
 | | Gõ toạ độ `x,y,rộng,cao` | Khi bạn đã biết chính xác khung |
 | | *Kéo chuột trên ảnh* | Chắc ăn nhất — khoanh tay đúng chỗ, không cần đoán |
 | **Chỉ vá đúng nét chữ** | Vá cả ô | Chắc ăn, hợp với logo nhiều màu |
 | | Chỉ nét sáng / trắng | Đẹp hơn với watermark chữ trắng — nền trong ô giữ nguyên |
-| **Cách xử lý** | Tự chọn (gỡ lớp phủ nếu đủ ảnh) | Từ 6 ảnh cùng kích thước trở lên thì **học ra lớp phủ của logo rồi trừ ngược nó ra** — nền phía dưới hiện lại nguyên vẹn, kể cả khi logo đè lên người/đồ vật. Không đủ điều kiện thì tự lùi về vá nền (mục 4c) |
+| **Cách xử lý** | Tự chọn (gỡ lớp phủ nếu đủ ảnh) | Từ 4 ảnh cùng kích thước trở lên thì **học ra lớp phủ của logo rồi trừ ngược nó ra** — nền phía dưới hiện lại nguyên vẹn, kể cả khi logo đè lên người/đồ vật. Không đủ điều kiện thì tự lùi về vá nền (mục 4c) |
 | | Vá theo cấu trúc nền | **Giữ nguyên ranh giới sắc nét.** Với mỗi điểm cần vá, nó nhìn sang trái/phải cùng hàng và trên/dưới cùng cột, hướng nào hai đầu cùng màu thì tin hướng đó |
 | | Vá mềm — khuếch tán | Tán màu đều ra. Mượt hơn với ảnh chụp nền rối, nhưng **làm nhoè ranh giới sắc nét** |
 | | Tô màu nền | Nền đúng một màu thì cách này gọn hơn |
@@ -168,7 +168,7 @@ hơn thay vì trung bình hai hướng đang cãi nhau, và nhìn **vân của n
 | Chạm mép phải | 31,6 | **0,00** |
 | Chạm cả mép phải lẫn đáy | 27,6 | **0,00** |
 
-## 4c. Gỡ lớp phủ — cách xoá sạch nhất, cần từ 6 ảnh
+## 4c. Gỡ lớp phủ — cách xoá sạch nhất, cần từ 4 ảnh
 
 Watermark không phải là "sơn đè lên" mà là một **lớp mờ dán lên ảnh**:
 
@@ -177,38 +177,59 @@ nhìn thấy = (1 − alpha) × nền  +  alpha × màu logo
 ```
 
 `alpha` và màu logo **giống hệt nhau ở mọi ảnh** trong dự án — logo luôn một chỗ, một
-kiểu. Chỉ có "nền" là mỗi ảnh một khác. Nên với mỗi điểm ảnh, gom N tấm lại là có N cặp
-(nền, nhìn thấy); khớp một đường thẳng qua chúng thì ra ngay `alpha` và màu logo. Có rồi
-thì lấy lại nền thật chỉ là phép trừ:
+kiểu. Biết `alpha` rồi thì lấy lại nền thật chỉ là một phép trừ. Cái hay: **chỗ nào không
+có logo thì alpha = 0 → giữ nguyên từng pixel**. Chân người, bậc thang, đường ranh màu
+nằm ngay dưới logo đều không bị đụng tới — khác hẳn cách vá (vốn xoá sạch cả ô rồi dựng
+lại từ đoán, gặp vật thể là lộ).
 
-```
-nền = (nhìn thấy − alpha × màu logo) / (1 − alpha)
-```
+**Đo `alpha` thế nào.** Với mỗi ảnh, vá tạm chỗ bị che để có "nền đoán" của riêng ảnh đó;
+`nhìn thấy − nền = alpha × (màu logo − nền)` là ra `alpha` ngay. Ảnh nào có vật thể ngay
+dưới logo thì nền đoán sai, `alpha` ra số trợ trên trợ dưới — nhưng logo thật phải **giống
+nhau ở mọi ảnh**, nên lấy **trung vị qua tất cả ảnh và cả 3 kênh màu** là mấy ảnh vá nhầm
+bị loại sạch. Màu logo chưa biết thì đoán là trắng rồi tính lại bằng bình phương tối thiểu
+sau mỗi vòng, ba vòng là đúng hẳn.
 
-Cái hay: **chỗ nào không có logo thì alpha = 0 → giữ nguyên từng pixel**. Chân người,
-bậc thang, đường ranh màu nằm ngay dưới logo đều không bị đụng tới — khác hẳn cách vá
-(vốn xoá sạch cả ô rồi dựng lại từ đoán, gặp vật thể là lộ).
+> Bản trước đo `alpha` bằng cách **so nền giữa các ảnh với nhau**. Cách đó chết với ảnh
+> vector phẳng: góc dưới phải của mọi cảnh giống hệt nhau (vẫn nền xanh + dải vàng đó),
+> nền không đổi thì không có gì mà so — kết quả là watermark còn nguyên, còn mấy chỗ có
+> bàn chân đi qua lại bị tưởng nhầm là logo rồi vá loang ra. Cách mới đo **trong từng ảnh
+> một** nên nền có đứng yên cũng không sao.
 
-Ba chỗ phải xử lý riêng, nếu không là hỏng:
+**Chỗ giữa dấu ✦ đặc hoàn toàn** (alpha = 1) thì nền bị che sạch, trừ kiểu gì cũng không
+ra — nhưng nhờ biết chính xác `alpha` nên chỉ vá đúng mấy điểm đó, không vá lan. Chỗ
+`alpha` gần 1 thì pha dần giữa bản trừ và bản vá theo độ tin cậy, nên không có đường viền
+giữa hai vùng.
 
-- **Giữa dấu ✦ đặc hoàn toàn** (alpha = 1): nền bị che sạch, trừ kiểu gì cũng không ra.
-  Nhưng nhờ học được alpha nên biết **chính xác** mấy điểm đó ở đâu → chỉ vá đúng chúng,
-  không vá lan. Chỗ alpha gần 1 thì pha dần giữa bản trừ và bản vá theo độ tin cậy, nên
-  không có đường viền giữa hai vùng.
-- **Vài ảnh có vật thể ngay dưới logo**: nền đoán của mấy ảnh đó sai hẳn, khớp thẳng tuột
-  thì chúng kéo hệ số của cả vùng đi và cả mảng cạnh logo bị "gỡ" nhầm thành vệt vuông.
-  Nên phép khớp **bỏ 1/4 số ảnh lệch nhất** rồi khớp lại.
-- **Nền dưới logo không đổi giữa các ảnh** (góc trời một màu suốt cả dự án): lúc đó không
-  tách được lớp phủ — tool trả về "không học được" và **tự lùi về cách vá**, vốn xử lý nền
-  phẳng rất đẹp.
+### Và nó cũng là bộ dò watermark tốt nhất
 
-Đo trên bộ 8 ảnh, hai ảnh trong đó có cột trắng viền đen đi ngay qua chỗ logo (lệch so
-với ảnh nền sạch, thang 0–255):
+Các bộ dò trước đều tìm "nét sắc / đốm sáng". Trên ảnh kênh bạn, **bàn chân trắng của hình
+que sáng hơn nền 160 mức, còn dấu ✦ mờ chỉ hơn vài chục** — nên bộ dò bám ngay vào bàn
+chân, vá nát chỗ đó, trong khi watermark vẫn còn nguyên. Đúng cái ảnh bạn gửi.
+
+Nên bây giờ tool **thử học lớp phủ ở từng góc ảnh**: góc nào có lớp phủ thật (mờ giống hệt
+nhau ở mọi ảnh) mới học ra được, bàn chân thì không bao giờ dính. Đo trên bộ ảnh kiểu kênh:
+bộ dò nét sắc báo `75,709` (bàn chân góc dưới trái), còn cách này báo `1320,712` — đúng
+dấu ✦ thật `1320,712` cỡ `30×30`. Khung nó chỉ ra lấy thẳng từ bản đồ `alpha` nên **ôm sát
+đúng cái logo**, không thừa một pixel.
+
+Không tìm ra thì mới quay về bộ dò nét sắc, rồi vá — như cũ.
+
+### Số đo
+
+Bộ 8 ảnh kiểu kênh (vector phẳng, góc ảnh giống hệt nhau), hai ảnh cuối có bàn chân đứng
+ngay dưới logo. Lệch so với ảnh nền sạch, thang 0–255:
 
 | | Chưa xoá | Vá theo cấu trúc | **Gỡ lớp phủ** |
 |---|---|---|---|
-| Ảnh nền thoáng | 2,8 – 3,6 | 0,00 | **0,6 – 0,8** |
-| Ảnh logo đè lên vật thể | 6,0 – 6,8 | 29,3 – 31,7 | **2,6 – 3,3** |
+| Ảnh nền thoáng | 2,98 | 0,00 | **0,05** |
+| Ảnh logo đè lên bàn chân | 1,67 | 11,56 | **0,09** |
+
+Và bộ 8 ảnh chụp (nền mỗi ảnh một khác, hai ảnh có cột trắng viền đen đi qua chỗ logo):
+
+| | Chưa xoá | Vá theo cấu trúc | **Gỡ lớp phủ** |
+|---|---|---|---|
+| Ảnh nền thoáng | 2,8 – 3,6 | 0,00 | **0,41** |
+| Ảnh logo đè lên vật thể | 6,0 – 6,8 | 27,2 | **0,95** |
 
 Tức là **chỗ nền phẳng thì vá vẫn vô địch, chỗ logo đè lên vật thể thì vá tệ hơn cả không
 xoá, còn gỡ lớp phủ thì chỗ nào cũng sạch**. Vì vậy mặc định là "tự chọn": đủ ảnh thì gỡ
@@ -241,8 +262,8 @@ Vẫn trượt thì đừng chỉnh tới lui làm gì: **kéo chuột khoanh ta
 > Ngược lại, **logo đè lên người hay đồ vật thì không đáng sợ** — miễn là khung khoanh
 > sát. Đo trên ảnh có dấu ✦ nằm đè lên chân hình que: vá xong dựng lại đúng cặp chân,
 > lệch **0,00**. Cách vá bám theo cấu trúc nên nó nối tiếp đúng vạch dọc của cái chân.
-> Còn với vật thể phức tạp hơn (cột trắng viền đen, nhiều mảng màu) thì vá bắt đầu lộ —
-> đó là lúc **gỡ lớp phủ** ở mục 4c vào việc, và nó cần từ 6 ảnh.
+> Còn với vật thể phức tạp hơn (bàn chân, cột trắng viền đen, nhiều mảng màu) thì vá bắt
+> đầu lộ — đó là lúc **gỡ lớp phủ** ở mục 4c vào việc, và nó cần từ 4 ảnh.
 
 Vài trường hợp tiện ích **cố ý không chặn**: trang tự đặt `location.href` sang link
 tải, hoặc file tải qua một tab khác. Chặn mấy chỗ đó dễ làm hỏng thao tác khác của
@@ -291,9 +312,11 @@ node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_chrome.js     # tiện ích thậ
 node chrome_xoa_watermark/kiem_tra/tu_kiem_tra_trang_thu.js  # trang THU_1_ANH.html
 ```
 
-Bốn bài đều có phần đo **gỡ lớp phủ**: dựng 8 ảnh cùng dự án (2 ảnh có cột trắng đi qua
-chỗ logo), học lớp phủ rồi đo lại từng ảnh ra — chỗ khó phải dưới 5/255 và phải hơn hẳn
-cách vá, phần ngoài vùng logo không được đổi một pixel.
+Bốn bài đều có phần đo **gỡ lớp phủ**, trên hai loại ảnh: kiểu kênh (vector phẳng, góc ảnh
+giống hệt nhau, có bàn chân đứng dưới logo) và ảnh chụp (nền mỗi ảnh một khác). Học lớp
+phủ rồi đo lại từng ảnh ra — chỗ khó phải dưới 1–2/255 và phải hơn hẳn cách vá, phần ngoài
+vùng logo không được đổi một pixel. Có cả bài chốt rằng ảnh **không** có watermark thì
+tuyệt đối không được bịa ra một lớp phủ.
 
 Bài thứ ba cần `npm i -D playwright` và tự dựng một gói zip 6 ảnh có watermark, nạp
 tiện ích vào Chromium, thả file vào trang xử lý, bấm nút, rồi **đo lại từng ảnh ra**:

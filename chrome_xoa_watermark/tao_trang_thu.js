@@ -17,7 +17,7 @@ const GIAO_DIEN = String.raw`
 <div class="bao">
   <header>
     <h1>Thử xoá watermark trước khi chạy cả dự án</h1>
-    <p>Thả <b>vài ảnh</b> của cùng dự án vào đây (<b>6–10 ảnh là đẹp nhất</b>). Từ 6 ảnh trở lên,
+    <p>Thả <b>vài ảnh</b> của cùng dự án vào đây (<b>6–10 ảnh là đẹp nhất</b>). Từ 4 ảnh trở lên,
       tool <b>học ra chính cái lớp phủ mờ</b> của logo rồi gỡ đúng nó ra — nền phía dưới hiện lại
       nguyên vẹn, kể cả khi logo đè lên người hay đồ vật. Mọi thứ xử lý ngay trong trình duyệt,
       ảnh không đi đâu cả.</p>
@@ -25,7 +25,7 @@ const GIAO_DIEN = String.raw`
 
   <div id="tha" class="tha">
     <div class="tha-chu">Kéo thả ảnh vào đây</div>
-    <div class="tha-phu">1 ảnh cũng chạy được, nhưng <b>từ 6 ảnh cùng dự án</b> mới gỡ được lớp phủ — đẹp hơn hẳn</div>
+    <div class="tha-phu">1 ảnh cũng chạy được, nhưng <b>từ 4 ảnh cùng dự án</b> mới gỡ được lớp phủ — đẹp hơn hẳn, càng nhiều càng chắc</div>
     <button id="chon" class="nut-chinh" type="button">Chọn ảnh…</button>
     <input id="file" type="file" accept="image/*" multiple hidden>
   </div>
@@ -51,7 +51,7 @@ const GIAO_DIEN = String.raw`
         <label for="cach">Cách xử lý</label>
         <select id="cach">
           <option value="tu-dong">Tự chọn: gỡ lớp phủ nếu đủ ảnh (nên dùng)</option>
-          <option value="go">Gỡ lớp phủ (bắt buộc ≥ 6 ảnh)</option>
+          <option value="go">Gỡ lớp phủ (bắt buộc ≥ 4 ảnh)</option>
           <option value="va">Vá theo cấu trúc nền</option>
           <option value="va-mem">Vá mềm — khuếch tán</option>
           <option value="to">Tô màu nền</option>
@@ -259,12 +259,33 @@ const DIEU_KHIEN = String.raw`
   function layMoHinh() {
     var bo = cungCoAnh();
     if (bo.length < LOI.SO_ANH_TOI_THIEU) return null;
-    var khoa = anhGoc.rong + "x" + anhGoc.cao + "|" + vung.x + "," + vung.y + ","
-             + vung.w + "," + vung.h + "|" + bo.length;
+    var khoa = khoaHoc(tuTim);
     if (khoa === khoaMoHinh) return moHinh;
-    moHinh = LOI.hocLopPhu(bo.map(function (m) { return m.anh; }), vung);
-    khoaMoHinh = moHinh ? khoa : "";
+    var cacAnh = bo.map(function (m) { return m.anh; });
+    if (tuTim) {
+      // De chinh lop phu chi ra cho logo: thu hoc o tung goc anh, goc nao co
+      // lop phu that moi hoc ra duoc. Dang tin hon han bo do net sac - tren anh
+      // vector phang, ban chan trang cua hinh que con sang hon ca watermark nen
+      // bo do cu bam nham vao chan roi va nat cho do, con logo thi con nguyen.
+      var kq = LOI.timLopPhu(cacAnh);
+      moHinh = kq.mo_hinh;
+      if (moHinh) vung = kq.vung;
+      // khong lot vao o goc nao (watermark dang chu dai chang han) thi thu hoc
+      // ngay trong khung vua do duoc bang cach cu
+      else moHinh = LOI.hocLopPhu(cacAnh, vung);
+    } else {
+      moHinh = LOI.hocLopPhu(cacAnh, vung);
+    }
+    if (moHinh) vung = LOI.noVung(LOI.baoAlpha(moHinh), 2, anhGoc.rong, anhGoc.cao);
+    // nho ca truong hop hoc khong ra, de lat anh khac khong hoc lai tu dau
+    khoaMoHinh = khoa;
     return moHinh;
+  }
+
+  function khoaHoc(tuTim) {
+    return anhGoc.rong + "x" + anhGoc.cao + "|"
+      + (tuTim ? "tu-tim" : vung.x + "," + vung.y + "," + vung.w + "," + vung.h)
+      + "|" + cungCoAnh().length;
   }
 
   function lamLai(ghiChu) {
@@ -282,22 +303,23 @@ const DIEU_KHIEN = String.raw`
 
     // Hoc lop phu mat vai giay -> bao cho nguoi dung biet roi moi lam, khong de
     // trang dung im nhu treo.
+    var tuTim = cd.vung === "tu-tim";
     var canHoc = (cd.cach === "tu-dong" || cd.cach === "go")
               && cungCoAnh().length >= LOI.SO_ANH_TOI_THIEU
-              && !(moHinh && khoaMoHinh === anhGoc.rong + "x" + anhGoc.cao + "|" + vung.x + ","
-                   + vung.y + "," + vung.w + "," + vung.h + "|" + cungCoAnh().length);
+              && khoaHoc(tuTim) !== khoaMoHinh;
     if (canHoc) {
       e("mota").textContent = "Đang học lớp phủ của logo từ " + cungCoAnh().length
-        + " ảnh… (chỉ làm một lần cho cả lô)";
-      setTimeout(function () { veKetQua(cd, ghiChu); }, 30);
+        + " ảnh… (chỉ làm một lần cho cả lô, mất vài giây)";
+      setTimeout(function () { veKetQua(cd, ghiChu, tuTim); }, 30);
       return;
     }
-    veKetQua(cd, ghiChu);
+    veKetQua(cd, ghiChu, tuTim);
   }
 
-  function veKetQua(cd, ghiChu) {
+  function veKetQua(cd, ghiChu, tuTim) {
     if (!anhGoc) return;
-    var mh = (cd.cach === "tu-dong" || cd.cach === "go") ? layMoHinh() : null;
+    var mh = (cd.cach === "tu-dong" || cd.cach === "go") ? layMoHinh(tuTim) : null;
+    if (mh && tuTim) ghiChu = "chính lớp phủ chỉ ra chỗ logo";
     var cachDaDung;
     if (mh) {
       anhSach = LOI.goLopPhu(anhGoc, mh);
@@ -329,13 +351,13 @@ const DIEU_KHIEN = String.raw`
         + "Hoặc kéo chuột khoanh tay quanh cái logo.";
       e("canhBao").classList.remove("an");
     } else if (cd.cach === "go" && !mh) {
-      e("canhBao").innerHTML = "⚠ <b>Chưa gỡ được lớp phủ</b> — cần <b>ít nhất 6 ảnh cùng dự án, "
-        + "cùng kích thước</b> và nền dưới logo phải khác nhau giữa các ảnh. Đang tạm vá theo "
-        + "cấu trúc nền. Thả thêm ảnh vào là chạy được ngay.";
+      e("canhBao").innerHTML = "⚠ <b>Chưa gỡ được lớp phủ</b> — cần <b>ít nhất 4 ảnh cùng dự án, "
+        + "cùng kích thước</b>, và khung phải trùm được cái logo. Đang tạm vá theo cấu "
+        + "trúc nền. Thả thêm ảnh vào, hoặc kéo chuột khoanh lại quanh logo.";
       e("canhBao").classList.remove("an");
     } else if (!mh && cd.cach === "tu-dong" && cungCoAnh().length < LOI.SO_ANH_TOI_THIEU) {
       e("canhBao").innerHTML = "ⓘ Đang vá nền vì mới có " + cungCoAnh().length
-        + " ảnh. <b>Thả đủ 6 ảnh cùng dự án</b> là tool học được lớp phủ của logo và gỡ đúng nó "
+        + " ảnh. <b>Thả đủ 4 ảnh cùng dự án</b> là tool học được lớp phủ của logo và gỡ đúng nó "
         + "ra — chỗ logo đè lên người/đồ vật cũng sạch, không còn vết vá.";
       e("canhBao").classList.remove("an");
     } else if (!mh && tiLeKhung > 0.03) {

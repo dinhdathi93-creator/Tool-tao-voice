@@ -811,41 +811,49 @@
    *
    * Watermark la mot lop phu mo dap len anh:
    *     nhin_thay = (1 - alpha) * nen + alpha * mau_logo
-   * alpha va mau_logo GIONG NHAU o moi anh (logo luon mot cho, mot kieu), chi
-   * "nen" la moi anh mot khac. Voi moi diem ta co N cap (nen, nhin_thay) tu N
-   * anh; khop duong thang  nhin_thay = a * nen + b  thi a = 1 - alpha va
-   * b = alpha * mau_logo. Co a, b roi thi lay lai nen that:
-   *     nen = (nhin_thay - b) / a
+   * alpha va mau_logo GIONG HET NHAU o moi anh (logo luon mot cho, mot kieu),
+   * chi "nen" la moi anh mot khac. Biet alpha va mau_logo la lay lai duoc nen:
+   *     nen = (nhin_thay - alpha * mau_logo) / (1 - alpha)
    *
-   * Cai hay: cho nao khong co logo thi a = 1, b = 0 -> giu nguyen tung pixel.
-   * Chan nguoi, bac thang, duong ranh mau khong bi dong toi - khac han cach va
-   * (von xoa sach ca o roi dung lai tu doan, gap vat the la lo ngay).
+   * Cai hay: cho nao khong co logo thi alpha = 0 -> giu nguyen tung pixel. Chan
+   * nguoi, bac thang, duong ranh mau khong bi dong toi - khac han cach va (von
+   * xoa sach ca o roi dung lai tu doan, gap vat the la lo ngay).
    *
-   * Cho nao logo dac hoan toan (alpha = 1, a = 0) thi nen bi che het, tru kieu
-   * gi cung khong ra - nhung ta biet chac cho do CO logo, nen danh dau lai
-   * (dat_cung) de goLopPhu va rieng may diem do bang cach cau truc. Ranh giua
-   * "dac" va "khong co logo" phai tach cho ro: lan truoc gop lam mot nen loi
-   * dac bi coi la khong co logo va watermark con nguyen tren anh.
+   * CACH DO ALPHA. Ban truoc do bang cach so nen giua cac anh voi nhau; cach do
+   * chet han voi anh vector phang cua kenh, vi goc duoi phai cua moi anh giong
+   * het nhau - nen khong doi thi khong co gi ma so, va may cho co ban chan di
+   * qua lai bi tuong nham la logo. Ket qua: watermark con nguyen, canh no lai
+   * lo mot mang vet va.
    *
-   * Lam 3 vong: vong dau lay nen doan tu cach va, vong sau lay chinh ket qua da
-   * go lam nen doan - cang lam cang sat.
+   * Cach nay do trong TUNG anh mot, roi lay TRUNG VI qua ca bo:
+   *   - va lai cho bi che -> duoc nen doan cua rieng anh do;
+   *   - nhin_thay - nen = alpha * (mau_logo - nen), suy ra alpha ngay;
+   *   - anh nao va nham (co ban chan / do vat ngay duoi logo) thi ra so tro tren
+   *     tro duoi, nhung logo THAT phai giong nhau o moi anh -> lay trung vi qua
+   *     tat ca anh va ca 3 kenh mau la may anh nham bi loai het.
+   * Khong can nen doi giua cac anh, nen anh vector phang chay cang ngot.
    *
-   * Tra { a, b, alpha, dat_cung, vung, so_anh, so_diem, so_diem_dac } hoac null.
+   * Mau logo chua biet thi doan la trang roi tinh lai bang binh phuong toi
+   * thieu sau moi vong - vai vong la dung han.
+   *
+   * Cho nao logo dac hoan toan (alpha = 1) thi nen bi che sach, tru kieu gi
+   * cung khong ra - danh dau (dat_cung) de goLopPhu va rieng may diem do.
+   *
+   * Tra { a, b, alpha, dat_cung, mau_logo, vung, so_anh, so_diem, so_diem_dac }
+   * hoac null khi khong tim ra lop phu nao dang tin (luc do ben ngoai quay ve
+   * cach va).
    */
 
-  /**
-   * Khop  o = a*r + b  nhung BO QUA vai anh lech nhat.
-   *
-   * Nen doan cua mot vai anh co the sai han (cho do co cai cot, chan nguoi... bi
-   * va nham). Khop thang tuot thi may anh do keo he so lech di, ca mang canh
-   * logo bi tuong nham la co lop phu roi bi "go" -> lo ra mot vet vuong. Bo 1/4
-   * so anh lech nhat roi khop lai thi may anh do khong con noi gi nua.
-   *
-   * Tra a, hoac null neu khong ket luan duoc.
-   */
-  /* Duoi 6 anh thi khong du cho phep khop bo bot anh lech - do lai kem han ca
-   * cach va. Thieu anh thi tra null de ben ngoai quay ve cach va. */
-  var SO_ANH_TOI_THIEU = 6;
+  /* Duoi 4 anh thi trung vi khong con loai duoc anh va nham. */
+  var SO_ANH_TOI_THIEU = 4;
+  var NGUONG_ALPHA = 0.04;      // duoi muc nay coi nhu khong co logo
+  var NGUONG_DAC = 0.96;        // tu muc nay coi nhu che sach nen, phai va
+
+  function trungVi(mang, N) {
+    var t = Array.prototype.slice.call(mang, 0, N);
+    t.sort(function (x, y) { return x - y; });
+    return N % 2 ? t[(N - 1) / 2] : (t[N / 2 - 1] + t[N / 2]) / 2;
+  }
 
   /**
    * Va lai nhung chi tinh tren mot mieng quanh o.
@@ -885,247 +893,152 @@
     return { rong: W, cao: H, du_lieu: ra };
   }
 
-  function trungVi(mang, N) {
-    var t = Array.prototype.slice.call(mang, 0, N);
-    t.sort(function (x, y) { return x - y; });
-    return N % 2 ? t[(N - 1) / 2] : (t[N / 2 - 1] + t[N / 2]) / 2;
-  }
-
-  function khopBenVung(r, o, N) {
-    var q, sR = 0, sO = 0, sRR = 0, sRO = 0, dem = N;
-    for (q = 0; q < N; q++) { sR += r[q]; sO += o[q]; sRR += r[q] * r[q]; sRO += r[q] * o[q]; }
-
-    var bo = N >= 6 ? Math.min(N - 4, Math.max(1, Math.round(N / 4))) : 0;
-    for (var lan = 0; lan < bo; lan++) {
-      var mauSo = dem * sRR - sR * sR;
-      if (mauSo < 1e-6) return null;
-      var a1 = (dem * sRO - sR * sO) / mauSo;
-      var b1 = (sO - a1 * sR) / dem;
-      var teNhat = -1, duNhat = -1;
-      for (q = 0; q < N; q++) {
-        if (r[q] !== r[q]) continue;                   // da bo roi
-        var du = Math.abs(o[q] - (a1 * r[q] + b1));
-        if (du > duNhat) { duNhat = du; teNhat = q; }
-      }
-      if (teNhat < 0 || duNhat < 1.5) break;           // khop dep roi, khoi bo
-      sR -= r[teNhat]; sO -= o[teNhat];
-      sRR -= r[teNhat] * r[teNhat]; sRO -= r[teNhat] * o[teNhat];
-      dem--;
-      r[teNhat] = NaN;                                  // danh dau da bo
-    }
-
-    if (dem < 4) return null;
-    var lech = sRR / dem - (sR / dem) * (sR / dem);
-    if (lech < 9) return null;                          // nen gan nhu dung yen
-    var aa = (dem * sRO - sR * sO) / (dem * sRR - sR * sR);
-    if (!(aa > -0.05 && aa <= 1.05)) return null;
-    return aa;
-  }
   function hocLopPhu(cacAnh, vung, tuyChon) {
     tuyChon = tuyChon || {};
     if (!cacAnh || cacAnh.length < SO_ANH_TOI_THIEU) return null;
 
     var W = cacAnh[0].rong, H = cacAnh[0].cao;
-    var le = Math.max(6, Math.round(Math.max(vung.w, vung.h) * 0.35));
+    // O hoc rong hon o duoc khoanh: cho nao khong co logo thi alpha = 0 nen
+    // rong khong hai gi, ma khung co lech vai pixel van om tron duoc logo.
+    var le = Math.max(12, Math.round(Math.max(vung.w, vung.h) * 0.6));
     var v = noVung(gioiHan(vung, W, H), le, W, H);
     var n = v.w * v.h;
 
     var quan = [];
     for (var i = 0; i < cacAnh.length && quan.length < 24; i++) {
-      var a0 = cacAnh[i];
-      if (a0.rong !== W || a0.cao !== H) continue;
-      quan.push({ anh: a0, nhin: a0.du_lieu });
+      if (cacAnh[i].rong === W && cacAnh[i].cao === H) quan.push(cacAnh[i]);
     }
     var N = quan.length;
     if (N < SO_ANH_TOI_THIEU) return null;
 
-    var A = new Float32Array(n * 3), B = new Float32Array(n * 3);
     var alpha = new Float32Array(n);
-    var datCung = new Uint8Array(n);
-    var nenMau = new Float64Array(N), nhinMau = new Float64Array(N);
-    var NGUONG_DAC = 0.22;      // a duoi muc nay coi nhu logo dac, khong tru duoc
+    var mauLogo = [255, 255, 255];
+    var mau = new Float64Array(N * 3);
 
-    /* Nen doan cua tung anh = va lai cho bi che.
-     *
-     * Vong dau chua biet logo o dau nen phai va CA O - nghia la va nham ca noi
-     * dung that trong o (cai cot, chan nguoi...). Cho nao va nham thi obs khac
-     * han nen doan, phep khop lai tuong nham la "co lop phu" - dung la cai loi
-     * lam hong ca vung ben canh logo.
-     *
-     * Nen tu vong hai tro di ta thu hep mat na lai dung cho vua tim ra co logo.
-     * Ngoai cho do nen doan = chinh anh goc -> a = 1 -> khong dung toi. Cai cot,
-     * chan nguoi trong o duoc tra lai nguyen ven.
-     */
     function veNenDoan(matNa) {
-      return quan.map(function (q) { return vaQuanhO(q.anh, matNa, v).du_lieu; });
+      return quan.map(function (a) { return vaQuanhO(a, matNa, v).du_lieu; });
     }
-    function matNaTuAlpha() {
-      var mn = new Uint8Array(W * H), co = 0;
-      for (var yy = 0; yy < v.h; yy++) {
-        for (var xx = 0; xx < v.w; xx++) {
-          var kk = yy * v.w + xx;
-          if (alpha[kk] > 0.05 || datCung[kk]) { mn[(v.y + yy) * W + (v.x + xx)] = 1; co++; }
-        }
-      }
-      return co >= 12 ? noRongMatNa(mn, W, H, 2) : null;
+    var mnCaO = new Uint8Array(W * H);
+    for (var y0 = 0; y0 < v.h; y0++) {
+      for (var x0 = 0; x0 < v.w; x0++) mnCaO[(v.y + y0) * W + (v.x + x0)] = 1;
     }
-
-    /* Don ban do alpha sau moi vong khop.
-     *
-     * Hai thu luon bi nham thanh "co lop phu":
-     *   - vien ngoai o: o hoc rong hon o nguoi dung khoanh de co cho ta dua,
-     *     nhung logo chi nam trong o duoc khoanh -> ngoai do cat het.
-     *   - lom dom vai pixel: la nhieu, khong phai net logo -> bo cum nho.
-     * Phai don NGAY TRONG vong lap: mat na vong sau dung tu ban do nay, don
-     * som thi vong sau va dung cho, tra lai duoc cai cot / chan nguoi trong o.
-     */
-    var vGoc = gioiHan(vung, W, H);
-    function donAlpha() {
-      var k, x, y;
-      for (y = 0; y < v.h; y++) {
-        for (x = 0; x < v.w; x++) {
-          var gx = v.x + x, gy = v.y + y;
-          if (gx >= vGoc.x - 3 && gx < vGoc.x + vGoc.w + 3
-              && gy >= vGoc.y - 3 && gy < vGoc.y + vGoc.h + 3) continue;
-          k = y * v.w + x;
-          alpha[k] = 0; datCung[k] = 0;
-          A[k * 3] = A[k * 3 + 1] = A[k * 3 + 2] = 1;
-          B[k * 3] = B[k * 3 + 1] = B[k * 3 + 2] = 0;
-        }
-      }
-      var co = new Uint8Array(n);
-      for (k = 0; k < n; k++) co[k] = (alpha[k] > 0.05 || datCung[k]) ? 1 : 0;
-      var cum = cacCum(co, v.w, v.h);
-      for (var c0 = 0; c0 < cum.length; c0++) {
-        if (cum[c0].length >= 8) continue;           // cum du to -> giu
-        for (var d0 = 0; d0 < cum[c0].length; d0++) {
-          k = cum[c0][d0];
-          alpha[k] = 0; datCung[k] = 0;
-          A[k * 3] = A[k * 3 + 1] = A[k * 3 + 2] = 1;
-          B[k * 3] = B[k * 3 + 1] = B[k * 3 + 2] = 0;
-        }
-      }
-      donDatCung(datCung, alpha, v.w, v.h);
-    }
-
-    var nenDoan = veNenDoan(taoMatNa(cacAnh[0], v, "tat", 0, 0));
+    var nenDoan = veNenDoan(mnCaO);
 
     for (var vong = 0; vong < 3; vong++) {
-      for (var y = 0; y < v.h; y++) {
-        for (var x = 0; x < v.w; x++) {
-          var k = y * v.w + x;
+      var x, y, k, q, c;
+
+      // --- 1. alpha tung diem: trung vi qua (anh x kenh mau) ---------------
+      for (y = 0; y < v.h; y++) {
+        for (x = 0; x < v.w; x++) {
+          k = y * v.w + x;
           var g4 = ((v.y + y) * W + (v.x + x)) * 4;
-          var tongA = 0, demA = 0, c, q;
-
-          for (c = 0; c < 3; c++) {
-            for (q = 0; q < N; q++) {
-              nenMau[q] = nenDoan[q][g4 + c];
-              nhinMau[q] = quan[q].nhin[g4 + c];
+          var dem = 0;
+          for (q = 0; q < N; q++) {
+            for (c = 0; c < 3; c++) {
+              var nen = nenDoan[q][g4 + c];
+              var hieu = mauLogo[c] - nen;
+              // nen trung mau logo thi kenh do khong noi len duoc dieu gi
+              if (hieu > -25 && hieu < 25) continue;
+              var a1 = (quan[q].du_lieu[g4 + c] - nen) / hieu;
+              if (a1 < -0.15 || a1 > 1.15) continue;
+              mau[dem++] = a1 < 0 ? 0 : (a1 > 1 ? 1 : a1);
             }
-            var aa = khopBenVung(nenMau, nhinMau, N);
-            if (aa == null) continue;
-            tongA += Math.max(0, aa); demA++;
           }
-
-          // Logo trang thi alpha giong nhau ca 3 kenh -> lay trung binh cho do
-          // nhieu, roi tinh lai b theo a do.
-          var aChung = demA >= 2 ? tongA / demA : 1;
-          if (aChung > 0.985) aChung = 1;
-          if (aChung < NGUONG_DAC) {
-            // Logo dac: nen bi che sach, tru ngu?c ra chi con nhieu. Danh dau
-            // de va lai, va giu a = 1 de cong thuc go khong dung vao no.
-            datCung[k] = 1;
-            alpha[k] = 1;
-            for (c = 0; c < 3; c++) { A[k * 3 + c] = 1; B[k * 3 + c] = 0; }
-            continue;
-          }
-          datCung[k] = 0;
-          for (c = 0; c < 3; c++) {
-            // b = trung vi chu khong phai trung binh: mot hai anh va nham cung
-            // khong keo duoc mau logo lech di.
-            for (q = 0; q < N; q++) {
-              nenMau[q] = quan[q].nhin[g4 + c] - aChung * nenDoan[q][g4 + c];
-            }
-            var giua = trungVi(nenMau, N);
-            A[k * 3 + c] = aChung;
-            B[k * 3 + c] = aChung >= 1 ? 0 : giua;
-          }
-          alpha[k] = 1 - aChung;
+          var aK = dem >= Math.max(3, N) ? trungVi(mau, dem) : 0;
+          alpha[k] = aK < NGUONG_ALPHA ? 0 : aK;
         }
       }
-      donAlpha();
+
+      // --- 2. don: chi giu cum du to va khong cham vien o hoc --------------
+      donBanDoAlpha(alpha, v.w, v.h);
+
+      // --- 3. tinh lai mau logo ------------------------------------------
+      // nhin_thay - nen = alpha*(mau_logo - nen)  -> binh phuong toi thieu:
+      //   sum(alpha^2) * mau_logo = sum( alpha*(nhin_thay - nen) + alpha^2*nen )
+      var tren = [0, 0, 0], duoi = 0;
+      for (y = 0; y < v.h; y++) {
+        for (x = 0; x < v.w; x++) {
+          var aa = alpha[y * v.w + x];
+          if (aa < 0.25) continue;
+          var gg = ((v.y + y) * W + (v.x + x)) * 4;
+          for (q = 0; q < N; q++) {
+            for (c = 0; c < 3; c++) {
+              var nn = nenDoan[q][gg + c];
+              tren[c] += aa * (quan[q].du_lieu[gg + c] - nn) + aa * aa * nn;
+            }
+            duoi += aa * aa;
+          }
+        }
+      }
+      if (duoi > 0) {
+        for (c = 0; c < 3; c++) {
+          mauLogo[c] = Math.max(0, Math.min(255, tren[c] / duoi));
+        }
+      }
 
       if (vong === 2) break;
-      var matNaHep = matNaTuAlpha();
-      if (!matNaHep) break;                 // chua thay gi -> hoc them cung vo ich
-      var nenVa = veNenDoan(matNaHep);
-      // Trong cho co logo: neu tru duoc thi ban tru sat hon ban va nhieu.
-      nenDoan = nenVa.map(function (buf, q) {
-        var ra = Float32Array.from(buf);
-        for (var yy = 0; yy < v.h; yy++) {
-          for (var xx = 0; xx < v.w; xx++) {
-            var kk = yy * v.w + xx;
-            if (alpha[kk] <= 0.02 || datCung[kk]) continue;
-            var gg = ((v.y + yy) * W + (v.x + xx)) * 4;
-            for (var cc = 0; cc < 3; cc++) {
-              var aA = A[kk * 3 + cc];
-              if (aA >= 1 || aA <= 0.3) continue;   // a nho thi tru ra toan nhieu
-              ra[gg + cc] = Math.max(0, Math.min(255,
-                (quan[q].nhin[gg + cc] - B[kk * 3 + cc]) / aA));
-            }
-          }
+
+      // --- 4. va lai voi mat na hep dung bang cho co logo ------------------
+      var mn = new Uint8Array(W * H), co = 0;
+      for (y = 0; y < v.h; y++) {
+        for (x = 0; x < v.w; x++) {
+          if (alpha[y * v.w + x] > 0) { mn[(v.y + y) * W + (v.x + x)] = 1; co++; }
         }
-        return ra;
-      });
+      }
+      if (co < 12) break;
+      nenDoan = veNenDoan(noRongMatNa(mn, W, H, 2));
     }
 
-    // Diem le loi ra mot minh giua vung sach thuong la nhieu chu khong phai
-    // logo - don cho gon truoc khi dem.
-    donDatCung(datCung, alpha, v.w, v.h);
-
+    var A = new Float32Array(n * 3), B = new Float32Array(n * 3);
+    var datCung = new Uint8Array(n);
     var demCo = 0, demDac = 0;
     for (var z = 0; z < n; z++) {
-      if (datCung[z]) demDac++;
-      else if (alpha[z] > 0.05) demCo++;
+      var a = alpha[z] > 1 ? 1 : alpha[z];
+      if (a <= 0) { A[z * 3] = A[z * 3 + 1] = A[z * 3 + 2] = 1; continue; }
+      demCo++;
+      if (a >= NGUONG_DAC) { datCung[z] = 1; demDac++; }
+      for (var cc = 0; cc < 3; cc++) {
+        A[z * 3 + cc] = 1 - a;
+        B[z * 3 + cc] = a * mauLogo[cc];
+      }
     }
-    if (demCo + demDac < 20) return null;
+    if (demCo < 20) return null;
+    // Gan het la dac = nhieu kha nang do khong phai lop phu ma la mot vat the
+    // sang dung yen mot cho (ban chan hinh que chang han) bi va nham roi tuong
+    // la logo. Ma neu no dac that thi go cung chang hon gi va. Tra null cho
+    // lanh - ben ngoai se va nhu cu.
+    if (demDac > 0.5 * demCo) return null;
 
-    return { a: A, b: B, alpha: alpha, dat_cung: datCung, vung: v,
-             so_anh: N, so_diem: demCo + demDac, so_diem_dac: demDac };
+    return { a: A, b: B, alpha: alpha, dat_cung: datCung, mau_logo: mauLogo,
+             vung: v, so_anh: N, so_diem: demCo, so_diem_dac: demDac };
   }
 
-  /** Bo diem dac le loi, va vun lai cho dac lien mach (dong hinh mo roi dong). */
-  function donDatCung(datCung, alpha, w, h) {
-    function demQuanh(nguon, k, x, y) {
-      var dem = 0;
-      for (var dy = -1; dy <= 1; dy++) {
-        for (var dx = -1; dx <= 1; dx++) {
-          if (!dx && !dy) continue;
-          var xx = x + dx, yy = y + dy;
-          if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-          if (nguon[yy * w + xx]) dem++;
-        }
+  /**
+   * Don ban do alpha: bo cum nho va cum cham vien o hoc.
+   *
+   * Lom dom vai pixel la nhieu chu khong phai net logo. Con cum cham vien o hoc
+   * thi hoac la mot mang nen bi va nham, hoac la logo nam tran ra ngoai o - ca
+   * hai truong hop deu khong duoc go bua, tha tra ve khong biet con hon.
+   */
+  function donBanDoAlpha(alpha, w, h) {
+    var n = w * h, k;
+    var co = new Uint8Array(n);
+    for (k = 0; k < n; k++) co[k] = alpha[k] > 0 ? 1 : 0;
+    var cum = cacCum(co, w, h);
+    var giu = new Uint8Array(n);
+    for (var c = 0; c < cum.length; c++) {
+      if (cum[c].length < 8) continue;
+      var cham = false;
+      for (var d = 0; d < cum[c].length && !cham; d++) {
+        var yy = (cum[c][d] / w) | 0, xx = cum[c][d] - yy * w;
+        if (xx === 0 || yy === 0 || xx === w - 1 || yy === h - 1) cham = true;
       }
-      return dem;
+      if (cham) continue;
+      for (d = 0; d < cum[c].length; d++) giu[cum[c][d]] = 1;
     }
-    var tam = Uint8Array.from(datCung);
-    var x, y, k;
-    for (y = 0; y < h; y++) {
-      for (x = 0; x < w; x++) {
-        k = y * w + x;
-        if (tam[k] && demQuanh(tam, k, x, y) < 2) datCung[k] = 0;   // le loi -> bo
-      }
-    }
-    tam = Uint8Array.from(datCung);
-    for (y = 0; y < h; y++) {
-      for (x = 0; x < w; x++) {
-        k = y * w + x;
-        // lo thung giua vung dac (do nen tinh co giong mau logo) -> lap lai
-        if (!tam[k] && demQuanh(tam, k, x, y) >= 6) datCung[k] = 1;
-      }
-    }
-    for (k = 0; k < datCung.length; k++) if (datCung[k]) alpha[k] = 1;
+    for (k = 0; k < n; k++) if (!giu[k]) alpha[k] = 0;
   }
+
 
   /**
    * Go lop phu da hoc ra khoi mot anh.
@@ -1140,7 +1053,7 @@
    * Nho vay khong co buoc nhay nao giua "tru" va "va" - khong thay duong vien.
    */
   var TAU_VA = 18;        // ban va thuong lech chung nay muc mau
-  var XICH_MA = 2.5;      // nhieu con lai sau khi tru lop phu
+  var XICH_MA = 1.5;      // nhieu con lai sau khi tru lop phu
 
   function goLopPhu(anh, moHinh) {
     if (!moHinh) return anh;
@@ -1229,6 +1142,82 @@
     return { rong: rong, cao: cao, du_lieu: ra };
   }
 
+  /**
+   * TIM WATERMARK BANG CHINH LOP PHU - cach tim dang tin nhat.
+   *
+   * Cac bo do truoc deu tim "net sac / dom sang": tren anh vector phang cua kenh
+   * thi ban chan trang cua hinh que sang hon nen 160 muc, con dau ✦ mo chi hon
+   * co vai chuc - bo do bam ngay vao ban chan, roi va nat cho do trong khi
+   * watermark con nguyen. Dung cai loi nguoi dung gap.
+   *
+   * Cach nay khac han: thu hoc lop phu o tung goc anh. Cho nao co lop phu that
+   * (mo giong nhau o moi anh) thi hoc ra duoc, cho nao khong co thi hocLopPhu
+   * tra null. Ban chan khong phai lop phu nen khong bao gio dinh.
+   *
+   * Tra { mo_hinh, vung, goc, ghi_chu } - vung la o bao sat lay logo do chinh
+   * ban do alpha, dung de ve khung do va de va du phong.
+   */
+  /** O bao sat lay cho co alpha, tinh trong toa do cua mo hinh. */
+  function baoAlpha(moHinh) {
+    var v = moHinh.vung, xMin = v.w, yMin = v.h, xMax = -1, yMax = -1;
+    for (var y = 0; y < v.h; y++) {
+      for (var x = 0; x < v.w; x++) {
+        if (moHinh.alpha[y * v.w + x] <= 0) continue;
+        if (x < xMin) xMin = x;
+        if (x > xMax) xMax = x;
+        if (y < yMin) yMin = y;
+        if (y > yMax) yMax = y;
+      }
+    }
+    if (xMax < 0) return null;
+    return { x: v.x + xMin, y: v.y + yMin, w: xMax - xMin + 1, h: yMax - yMin + 1 };
+  }
+
+  /* Loc nhung thu chac chan khong phai logo: qua to, dai ngoang nhu mot thanh,
+   * hoac lo tho khap noi trong o bao. */
+  function hopLeLaLogo(moHinh, W, H) {
+    var o = baoAlpha(moHinh);
+    if (!o) return false;
+    if (o.w * o.h > 0.025 * W * H) return false;
+    var tiLe = o.w / o.h;
+    if (tiLe > 6 || tiLe < 1 / 6) return false;
+    return moHinh.so_diem >= 0.12 * o.w * o.h;
+  }
+
+  function timLopPhu(cacAnh, cacGoc) {
+    if (!cacAnh || cacAnh.length < SO_ANH_TOI_THIEU) {
+      return { mo_hinh: null, vung: null, goc: null,
+               ghi_chu: "can it nhat " + SO_ANH_TOI_THIEU + " anh cung du an" };
+    }
+    var W = cacAnh[0].rong, H = cacAnh[0].cao;
+    cacGoc = cacGoc || ["logo-duoi-phai", "logo-duoi-trai",
+                        "logo-tren-phai", "logo-tren-trai"];
+    var tot = null;
+    for (var g = 0; g < cacGoc.length; g++) {
+      var v = phanTichVung(cacGoc[g], W, H);
+      if (!v) continue;
+      var mh = hocLopPhu(cacAnh, v);
+      if (!mh || !hopLeLaLogo(mh, W, H)) continue;
+      tot = { mo_hinh: mh, goc: cacGoc[g] };
+      break;        // thay roi thi thoi, khoi do not ba goc con lai cho lau
+
+    }
+    if (!tot) {
+      return { mo_hinh: null, vung: null, goc: null,
+               ghi_chu: "khong thay lop phu nao chung cho ca bo anh" };
+    }
+
+    // o bao sat lay cho co logo, lay ngay tu ban do alpha
+    var mh2 = tot.mo_hinh;
+    var o = noVung(baoAlpha(mh2), 2, W, H);
+    return {
+      mo_hinh: mh2, vung: o, goc: tot.goc,
+      ghi_chu: "hoc lop phu tu " + mh2.so_anh + " anh, thay logo o goc "
+        + tot.goc.replace("logo-", "").replace("-", " ")
+        + " (" + mh2.so_diem + " diem)",
+    };
+  }
+
   /** Duong ong day du cho 1 anh. */
   function xoaWatermark(anh, caiDat) {
     caiDat = caiDat || {};
@@ -1262,6 +1251,8 @@
     vaCauTruc: vaCauTruc,
     SO_ANH_TOI_THIEU: SO_ANH_TOI_THIEU,
     hocLopPhu: hocLopPhu,
+    timLopPhu: timLopPhu,
+    baoAlpha: baoAlpha,
     goLopPhu: goLopPhu,
     toMauNen: toMauNen,
     veKhung: veKhung,
