@@ -74,18 +74,25 @@ function danSaoMo(anh, tuyChon) {
   const canh = t.canh == null ? 30 : t.canh;
   const damGiua = t.dam_giua == null ? 0.55 : t.dam_giua;
   const mau = t.mau || [255, 255, 255];
+  // quang: dau ✦ that co mot vien sang toa rat rong va rat nhat quanh no.
+  // quang = 2.2 nghia la con thay duoc toi 2,2 lan ban kinh loi.
+  const quang = t.quang == null ? 1 : t.quang;
   const { rong, cao } = anh;
   const d = new Uint8ClampedArray(anh.du_lieu);
   const cx = rong - le - canh / 2, cy = cao - le - canh / 2, r = canh / 2;
   const alpha = new Float32Array(rong * cao);
 
-  for (let y = Math.floor(cy - r) - 1; y <= Math.ceil(cy + r) + 1; y++) {
-    for (let x = Math.floor(cx - r) - 1; x <= Math.ceil(cx + r) + 1; x++) {
+  const rq = r * quang;
+  for (let y = Math.floor(cy - rq) - 1; y <= Math.ceil(cy + rq) + 1; y++) {
+    for (let x = Math.floor(cx - rq) - 1; x <= Math.ceil(cx + rq) + 1; x++) {
       if (x < 0 || y < 0 || x >= rong || y >= cao) continue;
-      const dx = Math.abs(x - cx) / r, dy = Math.abs(y - cy) / r;
+      const dx = Math.abs(x - cx) / (r * quang), dy = Math.abs(y - cy) / (r * quang);
       const v = Math.pow(dx, 0.55) + Math.pow(dy, 0.55);
       if (v > 1) continue;
-      const m = v <= 0.45 ? damGiua : damGiua * Math.max(0, (1 - v) / 0.55);
+      const loi = 0.45 / quang;
+      const m = v <= loi
+        ? damGiua
+        : damGiua * Math.pow(Math.max(0, (1 - v) / (1 - loi)), 1.2);
       alpha[y * rong + x] = m;
       const i = (y * rong + x) * 4;
       for (let c = 0; c < 3; c++) d[i + c] = d[i + c] * (1 - m) + mau[c] * m;

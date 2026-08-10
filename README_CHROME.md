@@ -236,6 +236,29 @@ bịa lại chi tiết. Chỉ gỡ lớp phủ mới sạch (0,09), mà nó cầ
 `THU_1_ANH.html` để nguyên ảnh và hiện cảnh báo đỏ, không xoá bừa. Muốn vá thử ngay trên
 một ảnh thì cứ **kéo chuột khoanh tay** — đó là bạn chủ động chọn.
 
+### Quầng mờ toả quanh logo
+
+Dấu ✦ thật không dừng lại ở cái lõi sáng rõ — quanh nó còn một **quầng toả rất rộng và
+rất nhạt** (alpha chỉ 0,01–0,04). Một ngưỡng alpha duy nhất thì hỏng cả hai đầu: để cao
+thì cắt mất quầng, để thấp thì nhiễu lấm tấm cũng bị coi là logo.
+
+Nên tool dùng **hai ngưỡng kiểu Canny**: lấy hạt giống ở ngưỡng cao (chắc chắn là logo),
+rồi *lan ra* theo các điểm liền kề còn trên ngưỡng thấp. Quầng dính liền với logo thì được
+giữ trọn, nhiễu ở xa thì không dính vào đâu cả. Kèm theo: nếu quầng tràn ra ngoài ô học
+thì tool **tự nới ô rộng gấp đôi rồi học lại** — ô chật quá vừa cắt cụt quầng, vừa làm
+chính cái nền tham chiếu bị quầng làm sáng lên nên alpha bị đoán thấp đi cả vùng.
+
+Và khi trừ ngược, độ tin cậy của bản vá được đo **theo từng chỗ**: chỗ nào nền quanh đó
+phẳng thì bản vá là đúng tuyệt đối (một màu liền) nên nghiêng hẳn về nó; chỗ nào có cấu
+trúc (chân người, đường ranh màu) thì bản vá là đồ bịa nên tin vào phép trừ.
+
+Đo bằng **điểm lệch lớn nhất** (trung bình làm loãng mất vệt mờ):
+
+| | Điểm lệch lớn nhất trên nền phẳng |
+|---|---|
+| Trước khi sửa | **19/255** — vệt hình ngôi sao, nhìn ra ngay |
+| Sau khi sửa | **2–3/255** — mắt không thấy |
+
 ### Số đo
 
 Bộ 8 ảnh kiểu kênh (vector phẳng, góc ảnh giống hệt nhau), hai ảnh cuối có bàn chân đứng
@@ -243,8 +266,9 @@ ngay dưới logo. Lệch so với ảnh nền sạch, thang 0–255:
 
 | | Chưa xoá | Vá theo cấu trúc | **Gỡ lớp phủ** |
 |---|---|---|---|
-| Ảnh nền thoáng | 2,98 | 0,00 | **0,05** |
-| Ảnh logo đè lên bàn chân | 1,67 | 11,56 | **0,09** |
+| Ảnh nền thoáng | 2,98 | 0,00 | **0,01** |
+| Ảnh logo đè lên bàn chân | 1,67 | 11,56 | **0,02** |
+| Có quầng mờ rộng, nền phẳng | 4,3 | 0,00 | **0,09** |
 
 Và bộ 8 ảnh chụp (nền mỗi ảnh một khác, hai ảnh có cột trắng viền đen đi qua chỗ logo):
 

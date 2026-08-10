@@ -623,6 +623,7 @@ class LopPhu:
     vung: Vung
     so_anh: int
     kich_thuoc: tuple[int, int]
+    cham_vien: bool = False
 
     @property
     def so_diem(self) -> int:
@@ -641,30 +642,70 @@ class LopPhu:
                     int(xs.max() - xs.min()) + 1, int(ys.max() - ys.min()) + 1)
 
 
-NGUONG_ALPHA = 0.04      # duoi muc nay coi nhu khong co logo
+# Hai nguong kieu Canny: lay hat giong o nguong cao (chac chan la logo) roi lan
+# ra theo cac diem lien ke con tren nguong thap. Mot nguong thi hong ca hai dau -
+# de cao thi cat mat cai QUANG MO toa quanh logo (con lai vet hinh ngoi sao rat
+# nhat, tren nen phang nhin ra ngay), de thap thi nhieu lom dom cung dinh vao.
+NGUONG_MANH = 0.05
+NGUONG_NHAT = 0.008
+NGUONG_ALPHA = NGUONG_NHAT
 NGUONG_DAC = 0.96        # tu muc nay coi nhu che sach nen, phai va
 
 
-def _don_ban_do_alpha(alpha: np.ndarray) -> None:
-    """Bo cum nho va cum cham vien o hoc (sua tai cho).
-
-    Lom dom vai pixel la nhieu chu khong phai net logo. Con cum cham vien o hoc
-    thi hoac la mot mang nen bi va nham, hoac la logo nam tran ra ngoai o - ca
-    hai deu khong duoc go bua, tha tra ve khong biet con hon.
-    """
+def _don_ban_do_alpha(alpha: np.ndarray) -> bool:
+    """Giu hat giong manh roi lan ra quang mo. Tra True neu co bo cum vi cham
+    vien o hoc (luc do ben ngoai se noi rong o roi hoc lai)."""
     h, w = alpha.shape
-    giu = np.zeros_like(alpha, dtype=bool)
-    for diem in _cac_cum(alpha > 0):
+    hang_doi: list[tuple[int, int]] = []
+    da_lay = np.zeros_like(alpha, dtype=bool)
+    bo_vi_cham = False
+    for diem in _cac_cum(alpha >= NGUONG_MANH):
         if len(diem) < 8:
             continue
         ys, xs = diem[:, 0], diem[:, 1]
         if ys.min() == 0 or xs.min() == 0 or ys.max() == h - 1 or xs.max() == w - 1:
+            bo_vi_cham = True
             continue
-        giu[ys, xs] = True
-    alpha[~giu] = 0.0
+        da_lay[ys, xs] = True
+        hang_doi.extend(zip(ys.tolist(), xs.tolist()))
+
+    nhat = alpha >= NGUONG_NHAT
+    while hang_doi:
+        y, x = hang_doi.pop()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < h and 0 <= nx < w and nhat[ny, nx] and not da_lay[ny, nx]:
+                da_lay[ny, nx] = True
+                hang_doi.append((ny, nx))
+
+    alpha[~da_lay] = 0.0
+    return bo_vi_cham
+
+
+NOI_RONG = "noi-rong"    # bao hieu: logo tran ra ngoai o hoc
 
 
 def hoc_lop_phu(cac_anh: Sequence[np.ndarray], vung: Vung) -> LopPhu | None:
+    """Hoc lop phu, tu NOI RONG o hoc neu logo (ke ca quang mo) cham vien.
+
+    Dau ✦ that co quang sang toa rong hon han cai loi sang ro. O hoc chat qua
+    thi quang bi cat cut, ma cat cut thi hai duong: mot la con lai vet mo hinh
+    ngoi sao, hai la chinh cai nen doan dung de tinh alpha cung bi quang lam
+    sang len -> alpha bi doan thap di ca vung.
+    """
+    le = 0.6
+    mo_hinh: LopPhu | str | None = None
+    for _ in range(3):
+        mo_hinh = _hoc_lop_phu_mot_lan(cac_anh, vung, le)
+        if mo_hinh is not NOI_RONG and (mo_hinh is None or not mo_hinh.cham_vien):
+            return mo_hinh if mo_hinh is not NOI_RONG else None
+        le *= 2
+    return None if mo_hinh is NOI_RONG else mo_hinh
+
+
+def _hoc_lop_phu_mot_lan(
+    cac_anh: Sequence[np.ndarray], vung: Vung, ti_le_le: float
+) -> "LopPhu | str | None":
     """Hoc lop phu watermark tu ca lo anh cung du an.
 
     Watermark la mot lop mo dap len anh:
@@ -693,7 +734,7 @@ def hoc_lop_phu(cac_anh: Sequence[np.ndarray], vung: Vung) -> LopPhu | None:
     v_goc = vung.gioi_han(rong, cao)
     # O hoc rong hon o duoc khoanh: cho nao khong co logo thi alpha = 0 nen rong
     # khong hai gi, ma khung co lech vai pixel van om tron duoc logo.
-    le = max(12, round(max(v_goc.w, v_goc.h) * 0.6))
+    le = max(12, round(max(v_goc.w, v_goc.h) * ti_le_le))
     v = v_goc.no(le, rong, cao)
     lat = (slice(v.y, v.y + v.h), slice(v.x, v.x + v.w))
     N = len(cac_anh)
@@ -728,7 +769,7 @@ def hoc_lop_phu(cac_anh: Sequence[np.ndarray], vung: Vung) -> LopPhu | None:
         alpha[alpha < NGUONG_ALPHA] = 0.0
 
         # --- 2. don ban do -------------------------------------------------
-        _don_ban_do_alpha(alpha)
+        bo_vi_cham = _don_ban_do_alpha(alpha)
 
         # --- 3. tinh lai mau logo -----------------------------------------
         # nhin - nen = alpha*(mau_logo - nen) -> binh phuong toi thieu
@@ -751,7 +792,8 @@ def hoc_lop_phu(cac_anh: Sequence[np.ndarray], vung: Vung) -> LopPhu | None:
 
     co = alpha > 0
     if co.sum() < 20:
-        return None
+        # Bo het vi cum nao cung cham vien = o hoc chat qua, noi ra roi hoc lai
+        return NOI_RONG if bo_vi_cham and v.w < rong and v.h < cao else None
     dat_cung = alpha >= NGUONG_DAC
     # Gan het la dac = nhieu kha nang khong phai lop phu ma la mot vat the sang
     # dung yen mot cho bi va nham roi tuong la logo. Ma neu dac that thi go cung
@@ -759,10 +801,14 @@ def hoc_lop_phu(cac_anh: Sequence[np.ndarray], vung: Vung) -> LopPhu | None:
     if dat_cung.sum() > 0.5 * co.sum():
         return None
 
+    cham_vien = bool(co[0, :].any() or co[-1, :].any() or co[:, 0].any() or co[:, -1].any())
+    if v.w >= rong and v.h >= cao:
+        cham_vien = False
+
     a3 = np.repeat((1.0 - alpha)[..., None], 3, axis=-1)
     b3 = alpha[..., None] * mau_logo[None, None, :]
     return LopPhu(a=a3, b=b3, alpha=alpha, dat_cung=dat_cung, mau_logo=mau_logo,
-                  vung=v, so_anh=N, kich_thuoc=(rong, cao))
+                  vung=v, so_anh=N, kich_thuoc=(rong, cao), cham_vien=cham_vien)
 
 
 def _hop_le_la_logo(mo_hinh: LopPhu, rong: int, cao: int) -> bool:
@@ -806,8 +852,30 @@ def tim_lop_phu(
     return None, None, "khong thay lop phu nao chung cho ca bo anh"
 
 
-TAU_VA = 18.0
+# TAU = ban va lech chung nay muc mau, XICH_MA = nhieu con lai sau khi tru.
+# TAU do THEO TUNG CHO: cho nao nen quanh do PHANG thi ban va la dung tuyet doi
+# nen tin han vao no; cho nao co cau truc (chan nguoi, duong ranh mau) thi ban
+# va la do bia nen phai tin vao phep tru.
 XICH_MA = 1.5
+TAU_TOI_THIEU, TAU_TOI_DA = 1.2, 40.0
+
+
+def _do_gap_ghenh(nen: np.ndarray) -> np.ndarray:
+    """max - min trong o 5x5 quanh tung diem, lay tren ca 3 kenh."""
+    lon = nen.max(axis=-1)
+    nho = nen.min(axis=-1)
+    cao, rong = lon.shape
+    dem_lon = np.full_like(lon, -1e9)
+    dem_nho = np.full_like(nho, 1e9)
+    for dy in range(-2, 3):
+        for dx in range(-2, 3):
+            y0, y1 = max(0, dy), cao + min(0, dy)
+            x0, x1 = max(0, dx), rong + min(0, dx)
+            a = lon[y0 - dy : y1 - dy, x0 - dx : x1 - dx]
+            b = nho[y0 - dy : y1 - dy, x0 - dx : x1 - dx]
+            dem_lon[y0:y1, x0:x1] = np.maximum(dem_lon[y0:y1, x0:x1], a)
+            dem_nho[y0:y1, x0:x1] = np.minimum(dem_nho[y0:y1, x0:x1], b)
+    return dem_lon - dem_nho
 
 
 def go_lop_phu(anh: np.ndarray, mo_hinh: LopPhu) -> np.ndarray:
@@ -816,9 +884,9 @@ def go_lop_phu(anh: np.ndarray, mo_hinh: LopPhu) -> np.ndarray:
     - alpha = 0   : giu nguyen tung pixel.
     - alpha vua   : tru nguoc lai -> lay lai dung nen that.
     - alpha gan 1 : tru nguoc thi phong dai sai so len 1/a lan, nen nga dan sang
-      ban va theo do tin cay  w = a^2*TAU^2 / (a^2*TAU^2 + XICH_MA^2).
+      ban va theo do tin cay  w = a^2*TAU^2 / (a^2*TAU^2 + XICH_MA^2), voi TAU
+      do theo do gap ghenh cua nen ngay tai cho do.
     - dat_cung    : nen bi che sach, chi con cach va.
-    Nho tron muot nen khong co duong vien giua phan tru va phan va.
     """
     cao, rong = anh.shape[:2]
     v = mo_hinh.vung
@@ -829,15 +897,15 @@ def go_lop_phu(anh: np.ndarray, mo_hinh: LopPhu) -> np.ndarray:
     if not mat_na.any():
         return anh.copy()
     mat_na = _no_rong(mat_na, 1)
-    ban_va = _va_quanh_o(anh, mat_na, v)[
-        v.y : v.y + v.h, v.x : v.x + v.w
-    ].astype(np.float64)
+    lat = (slice(v.y, v.y + v.h), slice(v.x, v.x + v.w))
+    ban_va = _va_quanh_o(anh, mat_na, v)[lat].astype(np.float64)
+    tau = np.clip(_do_gap_ghenh(ban_va) * 0.7, TAU_TOI_THIEU, TAU_TOI_DA)[..., None]
 
-    o = anh[v.y : v.y + v.h, v.x : v.x + v.w].astype(np.float64)
+    o = anh[lat].astype(np.float64)
     A = mo_hinh.a
     with np.errstate(divide="ignore", invalid="ignore"):
         tru = (o - mo_hinh.b) / np.where(A > 0, A, 1.0)
-    w = (A * A * TAU_VA * TAU_VA) / (A * A * TAU_VA * TAU_VA + XICH_MA * XICH_MA)
+    w = (A * A * tau * tau) / (A * A * tau * tau + XICH_MA * XICH_MA)
     tron = w * tru + (1.0 - w) * ban_va
 
     ket = np.where((A >= 1.0) | (A <= 0.0), o, tron)
@@ -845,7 +913,7 @@ def go_lop_phu(anh: np.ndarray, mo_hinh: LopPhu) -> np.ndarray:
     ket = np.where(co[..., None], ket, o)
 
     ra = anh.copy()
-    ra[v.y : v.y + v.h, v.x : v.x + v.w] = np.clip(ket, 0, 255).astype(np.uint8)
+    ra[lat] = np.clip(ket, 0, 255).astype(np.uint8)
     return ra
 
 
@@ -1516,16 +1584,20 @@ def _anh_kieu_kenh(hat: int, kho: bool, rong: int = 1376, cao: int = 768) -> np.
     return anh
 
 
-def _dan_sao_mo(anh: np.ndarray, dam_giua: float = 0.55,
-                le: int = 26, canh: int = 30) -> np.ndarray:
-    """Dau ✦ mo GIONG HET NHAU o moi anh: giua dac dan, ra vien mo dan."""
+def _dan_sao_mo(anh: np.ndarray, dam_giua: float = 0.55, le: int = 26,
+                canh: int = 30, quang: float = 1.0) -> np.ndarray:
+    """Dau ✦ mo GIONG HET NHAU o moi anh: giua dac dan, ra vien mo dan.
+
+    quang = do rong cua vien sang toa ra quanh logo (1 = chi vua cai loi).
+    """
     cao, rong = anh.shape[:2]
-    cx, cy, r = rong - le - canh / 2, cao - le - canh / 2, canh / 2
+    cx, cy, r = rong - le - canh / 2, cao - le - canh / 2, canh / 2 * quang
     yy, xx = np.mgrid[0:cao, 0:rong]
     v = (np.abs(xx - cx) / r) ** 0.55 + (np.abs(yy - cy) / r) ** 0.55
+    loi_giua = 0.45 / quang
     alpha = np.where(v > 1, 0.0,
-                     np.where(v <= 0.45, dam_giua,
-                              dam_giua * np.maximum(0.0, (1 - v) / 0.55)))
+                     np.where(v <= loi_giua, dam_giua,
+                              dam_giua * np.maximum(0.0, (1 - v) / (1 - loi_giua)) ** 1.2))
     ra = anh.astype(np.float64) * (1 - alpha[..., None]) + 255.0 * alpha[..., None]
     return np.clip(ra, 0, 255).astype(np.uint8)
 
@@ -1782,7 +1854,8 @@ def tu_kiem_tra() -> int:
     # Hai bo, hai ca kho khac han: "kenh" la vector phang, goc duoi phai cua moi
     # anh giong het nhau (cach so nen giua cac anh chet ngay o day - dung loai
     # anh cua nguoi dung); "anh" la nen moi anh mot khac.
-    def _do_mot_bo(ten, goc_lo, ban_lo, v_sao, nguong_de, nguong_kho, so_kho):
+    def _do_mot_bo(ten, goc_lo, ban_lo, v_sao, nguong_de, nguong_kho, so_kho,
+                   lon_nhat_toi_da=4, diem_it=100, diem_nhieu=400):
         o_lo = (slice(v_sao.y - 12, v_sao.y + v_sao.h + 12),
                 slice(v_sao.x - 12, v_sao.x + v_sao.w + 12))
 
@@ -1796,9 +1869,10 @@ def tu_kiem_tra() -> int:
         log.info("   [%s] hoc tu %d anh: %d diem dinh logo, mau logo %s",
                  ten, mh.so_anh, mh.so_diem,
                  ",".join(str(round(c)) for c in mh.mau_logo))
-        if not 100 < mh.so_diem < 400:
+        if not diem_it < mh.so_diem < diem_nhieu:
             loi.append(f"[{ten}] so diem ({mh.so_diem}) khong khop mot dau sao 30x30")
         te_de = te_kho = te_va = 0.0
+        lon_nhat_de = 0.0
         for i, (b, g) in enumerate(zip(ban_lo, goc_lo)):
             ra_go = go_lop_phu(b, mh)
             ca_anh = float(np.abs(ra_go.astype(np.float32) - g.astype(np.float32)).mean())
@@ -1810,8 +1884,15 @@ def tu_kiem_tra() -> int:
                 te_va = max(te_va, _lech(va_cau_truc(b, mn, va_lai(b, mn, dung_opencv=False)), g))
             else:
                 te_de = max(te_de, _lech(ra_go, g))
-        log.info("   [%s] anh thuong con lech %.2f; anh logo de len vat the: va %.2f -> "
-                 "go %.2f (thang 0-255)", ten, te_de, te_va, te_kho)
+                lon_nhat_de = max(lon_nhat_de, float(np.abs(
+                    ra_go[o_lo].astype(np.float32) - g[o_lo].astype(np.float32)).max()))
+        # Tren nen phang, trung binh be ti van co the con mot vet hinh ngoi sao
+        # nhin ra duoc - phai do ca diem LECH NHAT moi bat duoc.
+        log.info("   [%s] anh thuong con lech %.2f (diem lech nhat %.0f); anh logo de len "
+                 "vat the: va %.2f -> go %.2f (thang 0-255)",
+                 ten, te_de, lon_nhat_de, te_va, te_kho)
+        if lon_nhat_de > lon_nhat_toi_da:
+            loi.append(f"[{ten}] nen phang con vet: diem lech nhat {lon_nhat_de:.0f}/255")
         if te_de > nguong_de:
             loi.append(f"[{ten}] anh thuong con lech {te_de:.2f}/255")
         if te_kho > nguong_kho:
@@ -1824,12 +1905,20 @@ def tu_kiem_tra() -> int:
     ban_kenh = [_dan_sao_mo(g, 0.55) for g in goc_kenh]
     _do_mot_bo("kenh", goc_kenh, ban_kenh, v_sao_kenh, 0.5, 1.0, 2)
     _do_mot_bo("kenh, logo dac", goc_kenh, [_dan_sao_mo(g, 1.0) for g in goc_kenh],
-               v_sao_kenh, 1.5, 2.5, 2)
+               v_sao_kenh, 1.5, 2.5, 2, lon_nhat_toi_da=10, diem_nhieu=500)
+
+    # dau ✦ that co quang sang toa rong quanh no
+    for _q in (1.8, 2.5):
+        _do_mot_bo(f"kenh, quang rong {_q}x", goc_kenh,
+                   [_dan_sao_mo(g, 0.75, quang=_q) for g in goc_kenh],
+                   v_sao_kenh, 0.6, 1.2, 2, lon_nhat_toi_da=4,
+                   diem_it=300, diem_nhieu=1600)
 
     goc_anh_lo = [_anh_nen_doi(i * 7 + 3, False) for i in range(6)]
     goc_anh_lo += [_anh_nen_doi(101, True), _anh_nen_doi(202, True)]
+    # bo nay nen day van, khong phang - chi do trung binh
     _do_mot_bo("anh", goc_anh_lo, [_dan_lop_phu(g) for g in goc_anh_lo],
-               v_sao_kenh, 1.0, 2.0, 2)
+               v_sao_kenh, 1.0, 2.0, 2, lon_nhat_toi_da=255)
 
     # TIM logo bang chinh lop phu - bo do net sac bam nham vao ban chan trang
     v_net, gc_net = tim_logo_mot_anh(ban_kenh[0])

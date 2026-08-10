@@ -366,10 +366,14 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
 // ---------------------------------------------------------------------------
 
 {
-  const { danLopPhu, anhNenDoi, lechTrung } = require("./lop_phu.js");
+  const { danLopPhu, anhNenDoi, lechTrung, lechLonNhat } = require("./lop_phu.js");
   const { anhKieuKenh, danSaoMo } = require("./anh_kieu_kenh.js");
 
-  function doMotBo(ten, gocLo, banLo, sao, nguongDe, nguongKho, soKho) {
+  function doMotBo(ten, gocLo, banLo, sao, nguongDe, nguongKho, soKho, moc) {
+    moc = moc || {};
+    const lonNhatToiDa = moc.lon_nhat == null ? 4 : moc.lon_nhat;
+    const diemIt = moc.diem_it == null ? 100 : moc.diem_it;
+    const diemNhieu = moc.diem_nhieu == null ? 400 : moc.diem_nhieu;
     const oDo = { x: sao.x - 12, y: sao.y - 12, w: sao.w + 24, h: sao.h + 24 };
     const moHinh = LOI.hocLopPhu(banLo, sao);
     kiem(!!moHinh, `[${ten}] khong hoc duoc lop phu tu ${banLo.length} anh`);
@@ -377,10 +381,10 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
 
     console.log(`   [${ten}] hoc tu ${moHinh.so_anh} anh: ${moHinh.so_diem} diem dinh logo, `
       + `mau logo ${moHinh.mau_logo.map((z) => Math.round(z)).join(",")}`);
-    kiem(moHinh.so_diem > 100 && moHinh.so_diem < 400,
+    kiem(moHinh.so_diem > diemIt && moHinh.so_diem < diemNhieu,
          `[${ten}] so diem hoc duoc (${moHinh.so_diem}) khong khop mot dau sao 30x30`);
 
-    let teDe = 0, teKho = 0, teVaKho = 0;
+    let teDe = 0, teKho = 0, teVaKho = 0, lonNhatDe = 0;
     banLo.forEach((b, i) => {
       const raGo = LOI.goLopPhu(b, moHinh);
       const dGo = lechTrung(raGo, gocLo[i], oDo);
@@ -392,8 +396,14 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
           LOI.xoaWatermark(b, { vung_pixel: sao, cach: "va", no_rong: 2 }), gocLo[i], oDo));
       } else {
         teDe = Math.max(teDe, dGo);
+        lonNhatDe = Math.max(lonNhatDe, lechLonNhat(raGo, gocLo[i], oDo));
       }
     });
+    // Tren nen phang, trung binh be ti van co the con mot vet hinh ngoi sao
+    // nhin ra duoc - phai do ca diem LECH NHAT moi bat duoc.
+    console.log(`   [${ten}] nen phang: diem lech nhat ${lonNhatDe}/255`);
+    kiem(lonNhatDe <= lonNhatToiDa,
+         `[${ten}] nen phang con vet: diem lech nhat ${lonNhatDe}/255`);
     console.log(`   [${ten}] anh thuong con lech ${teDe.toFixed(2)}; anh logo de len vat the: `
       + `va ${teVaKho.toFixed(2)} -> go ${teKho.toFixed(2)} (thang 0-255)`);
     kiem(teDe < nguongDe, `[${ten}] anh thuong con lech ${teDe.toFixed(2)}/255`);
@@ -410,7 +420,17 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
 
   // dau sao dac han giua - phan dac phai duoc va, khong duoc bo qua
   const banDac = gocKenh.map((g) => danSaoMo(g, { dam_giua: 1 }));
-  doMotBo("kenh, logo dac", gocKenh, banDac, banDac[0].sao, 1.5, 2.5, 2);
+  // logo dac han thi nen ben duoi mat sach, chi con cach va - cho phep lech hon
+  doMotBo("kenh, logo dac", gocKenh, banDac, banDac[0].sao, 1.5, 2.5, 2,
+          { lon_nhat: 10, diem_nhieu: 500 });
+
+  // dau ✦ that co quang sang toa rong quanh no; nguong alpha don cat mat cai
+  // quang do la con lai mot vet hinh sao rat nhat, tren nen phang nhin ra ngay
+  for (const q of [1.8, 2.5]) {
+    const banQuang = gocKenh.map((g) => danSaoMo(g, { dam_giua: 0.75, quang: q }));
+    doMotBo(`kenh, quang rong ${q}x`, gocKenh, banQuang, banQuang[0].sao, 0.6, 1.2, 2,
+            { lon_nhat: 4, diem_it: 300, diem_nhieu: 1600 });
+  }
 
   // --- bo "anh": nen moi anh mot khac -------------------------------------
   const gocAnh = [];
@@ -418,7 +438,8 @@ kiem(vaAlpha.du_lieu[(15 * 40 + 15) * 4 + 3] === 128, "va lai lam mat kenh trong
   gocAnh.push(anhNenDoi(101, true));
   gocAnh.push(anhNenDoi(202, true));
   const banAnh = gocAnh.map((g) => danLopPhu(g, { dam_giua: 1 }));
-  doMotBo("anh", gocAnh, banAnh, banAnh[0].sao, 1.0, 2.0, 2);
+  // bo nay nen day van, khong phang - chi do trung binh, khong do diem lech nhat
+  doMotBo("anh", gocAnh, banAnh, banAnh[0].sao, 1.0, 2.0, 2, { lon_nhat: 255 });
 
   // --- khong duoc bia ra lop phu khi khong co ------------------------------
   kiem(LOI.hocLopPhu(gocKenh, banKenh[0].sao) === null,

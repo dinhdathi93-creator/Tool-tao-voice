@@ -124,4 +124,20 @@ function lechTrung(a, b, o) {
   return tong / Math.max(1, dem);
 }
 
-module.exports = { danLopPhu, banDoAlpha, anhNenDoi, lechTrung };
+/** Lech LON NHAT tren mot o - bat duoc vet mo ma trung binh lam loang mat. */
+function lechLonNhat(a, b, o) {
+  let lon = 0;
+  for (let y = o.y; y < o.y + o.h; y++) {
+    for (let x = o.x; x < o.x + o.w; x++) {
+      if (x < 0 || y < 0 || x >= a.rong || y >= a.cao) continue;
+      const i = (y * a.rong + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const d = Math.abs(a.du_lieu[i + c] - b.du_lieu[i + c]);
+        if (d > lon) lon = d;
+      }
+    }
+  }
+  return lon;
+}
+
+module.exports = { danLopPhu, banDoAlpha, anhNenDoi, lechTrung, lechLonNhat };
